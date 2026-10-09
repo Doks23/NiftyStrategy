@@ -51,6 +51,12 @@ class Params:
     brokerage: float = 20.0           # INR per order; 0 with charges_on=False for gross
     charges_on: bool = True
     stt_override: float = None
+    band_pct: float = 0.0             # VWAP buffer: signal only if |close-vwap|/vwap >= band_pct/100
+    confirm_n: int = 1                # consecutive same-side closes needed (entry and reversal)
+    opt_sl: float = 0.0               # exit if short premium rises this fraction above entry (0=off)
+    last_entry: time = time(15, 0)    # no new entries after this time
+    max_entries: int = 99             # max fresh (non-roll) entries per day
+    skip_weekdays: tuple = ()         # python weekday() numbers to skip entirely (e.g. (1,) = Tue)
     skip_first_candle: bool = True    # ignore the 09:15 candle for signals (still in VWAP)
 
 
@@ -96,7 +102,7 @@ def run_day(day, spot5: pd.DataFrame, opt1: Dict[Tuple[str, float], pd.DataFrame
     atm_at : f(ts, "CE"|"PE") -> strike that was ATM at ts (from the data feed)
     """
     trades: List[Trade] = []
-    if spot5.empty:
+    if spot5.empty or day.weekday() in p.skip_weekdays:
         return trades
     vwap = session_vwap(spot5, p.vwap_source)
     step = timedelta(minutes=p.candle_min)
@@ -108,6 +114,7 @@ def run_day(day, spot5: pd.DataFrame, opt1: Dict[Tuple[str, float], pd.DataFrame
     cap_inr = p.capital * p.loss_cap_pct / 100.0
 
     realised, open_t, cool_until, halted = 0.0, None, None, False
+    streak_dir, streak_n, entries, blocked = 0, 0, 0, 0
     day_end = datetime.combine(day, p.squareoff)
     last_min = max(ts for df in opt1.values() for ts in df.index) if opt1 else None
     if last_min is None:
@@ -145,6 +152,17 @@ def run_day(day, spot5: pd.DataFrame, opt1: Dict[Tuple[str, float], pd.DataFrame
                 realised += open_t.pnl
                 open_t = None
             break
+        # 2a) option stop-loss
+        if open_t is not None and p.opt_sl > 0:
+            typ = open_t.side[-2:]
+            mark = px((typ, open_t.strike), ts - timedelta(minutes=1), "close")
+            if mark is not None and mark >= open_t.entry_px * (1 + p.opt_sl):
+                fill = px((typ, open_t.strike), ts, "open")
+                if fill is not None:
+                    blocked = 1 if open_t.side == "SELL_PE" else -1   # don't re-sell same side until opposite signal
+                    open_t.close(ts, fill + p.slippage, "SL", p)
+                    realised += open_t.pnl
+                    open_t = None
         # 2b) roll-down: premium decayed >= roll_decay from this leg's entry -> re-sell at new ATM
         if open_t is not None and p.roll_decay > 0:
             typ = open_t.side[-2:]
@@ -161,8 +179,14 @@ def run_day(day, spot5: pd.DataFrame, opt1: Dict[Tuple[str, float], pd.DataFrame
         # 3) signal at candle close
         if ts in closes:
             c, v = closes[ts]
-            bullish = c > v
-            bearish = c < v
+            band = v * p.band_pct / 100.0
+            d = 1 if c > v + band else (-1 if c < v - band else 0)
+            streak_n = streak_n + 1 if (d != 0 and d == streak_dir) else (1 if d != 0 else 0)
+            streak_dir = d
+            confirmed = d != 0 and streak_n >= p.confirm_n
+            bullish, bearish = confirmed and d == 1, confirmed and d == -1
+            if blocked and d == -blocked:
+                blocked = 0
             if open_t is not None:
                 reverse = (open_t.side == "SELL_PE" and bearish) or (open_t.side == "SELL_CE" and bullish)
                 if reverse:
@@ -173,13 +197,16 @@ def run_day(day, spot5: pd.DataFrame, opt1: Dict[Tuple[str, float], pd.DataFrame
                         realised += open_t.pnl
                         open_t = None
                         cool_until = ts + timedelta(minutes=p.cooloff_min)
-            if open_t is None and (bullish or bearish) and (cool_until is None or ts >= cool_until):
+            if (open_t is None and (bullish or bearish) and (cool_until is None or ts >= cool_until)
+                    and ts.time() <= p.last_entry and entries < p.max_entries
+                    and not (blocked == d)):
                 typ = "PE" if bullish else "CE"
                 strike = atm_at(ts, typ)
                 fill = px((typ, strike), ts, "open") if strike is not None else None
                 if fill is not None:
                     open_t = Trade(day, f"SELL_{typ}", strike, ts, fill - p.slippage, qty=qty)
                     trades.append(open_t)
+                    entries += 1
         ts += timedelta(minutes=1)
     # safety: anything still open at data end
     if open_t is not None:
