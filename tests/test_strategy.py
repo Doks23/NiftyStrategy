@@ -21,7 +21,7 @@ def opts(minutes, ce, pe, strike=100):
     return {("CE", strike): mk(ce), ("PE", strike): mk(pe)}
 
 
-P = Params(roll_decay=0, skip_first_candle=False, slippage=0, lots=1, lot_size=1, capital=1000, loss_cap_pct=1.8, cooloff_min=3)
+P = Params(charges_on=False, roll_decay=0, skip_first_candle=False, slippage=0, lots=1, lot_size=1, capital=1000, loss_cap_pct=1.8, cooloff_min=3)
 atm = lambda ts, typ: 100
 
 
@@ -58,10 +58,19 @@ def test_roll_down_and_first_candle_skip():
     ce = lambda i: 50
     pe = lambda i: 40 if i < 12 else 10      # premium decays 75% -> roll
     o = opts(40, ce, pe, 100); o.update(opts(40, ce, lambda i: 40 if i < 12 else 10, 150))
-    q = Params(roll_decay=0.6, skip_first_candle=True, slippage=0, lots=1, lot_size=1, capital=1000)
+    q = Params(charges_on=False, roll_decay=0.6, skip_first_candle=True, slippage=0, lots=1, lot_size=1, capital=1000)
     tr = run_day(D, s, o, lambda ts, typ: 100 if ts < T0 + timedelta(minutes=12) else 150, q)
     assert tr[0].entry_ts == T0 + timedelta(minutes=10)      # 09:15 candle skipped (09:20 close ignored)
     assert tr[0].reason == "ROLL" and tr[1].strike == 150 and tr[1].side == "SELL_PE"
+
+
+def test_charges_sanity():
+    from niftyvwap.strategy import charges
+    # 75 qty, sell 100 buy 60, after Apr-2026 STT 0.15%: sell turnover 7500
+    f = charges(date(2026, 9, 1), 100, 60, 75)
+    stt = 7500 * 0.0015; txn = (7500 + 4500) * 0.0003553; gst = 0.18 * (40 + txn + 12000 * 1e-6)
+    assert abs(f - (40 + stt + txn + 12000 * 1e-6 + 4500 * 0.00003 + gst)) < 1e-6
+    assert charges(date(2026, 1, 1), 100, 60, 75) < f          # old STT rate lower
 
 
 if __name__ == "__main__":

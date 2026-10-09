@@ -15,10 +15,25 @@ by `slippage` points against us. The strike is fixed at entry and tracked.
 Loss cap is checked every minute on 1-minute option closes (MTM).
 """
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, time
+from datetime import date, datetime, timedelta, time
 from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
+
+
+def charges(day, entry_px, exit_px, qty, brokerage=20.0, stt_override=None) -> float:
+    """Round-trip INR charges for ONE short index-option leg (sell at entry, buy at exit).
+    Brokerage flat per order (Dhan F&O Rs20); STT on sell premium (0.10% before 2026-04-01,
+    0.15% from then - Budget 2026; override with stt_override); NSE txn 0.03553% both sides;
+    SEBI Rs10/crore; stamp 0.003% on buy; GST 18% on brokerage+txn+SEBI."""
+    sell, buy = entry_px * qty, exit_px * qty
+    stt_rate = stt_override if stt_override is not None else (0.0015 if day >= date(2026, 4, 1) else 0.0010)
+    stt = sell * stt_rate
+    txn = (sell + buy) * 0.0003553
+    sebi = (sell + buy) * 1e-7 * 10
+    stamp = buy * 0.00003
+    gst = 0.18 * (2 * brokerage + txn + sebi)
+    return 2 * brokerage + stt + txn + sebi + stamp + gst
 
 
 @dataclass
@@ -33,6 +48,9 @@ class Params:
     squareoff: time = time(15, 15)
     vwap_source: str = "volume"       # "volume" (needs volume) or "typical" (unweighted)
     roll_decay: float = 0.60          # roll down when premium has decayed this much from entry; 0 = off
+    brokerage: float = 20.0           # INR per order; 0 with charges_on=False for gross
+    charges_on: bool = True
+    stt_override: float = None
     skip_first_candle: bool = True    # ignore the 09:15 candle for signals (still in VWAP)
 
 
@@ -47,11 +65,16 @@ class Trade:
     exit_px: float = None
     reason: str = ""
     qty: int = 0
-    pnl: float = 0.0     # INR, short option: (entry - exit) * qty
+    pnl: float = 0.0     # INR NET of charges
+    gross: float = 0.0   # (entry - exit) * qty
+    fees: float = 0.0
 
-    def close(self, ts, px, reason):
+    def close(self, ts, px, reason, p=None):
         self.exit_ts, self.exit_px, self.reason = ts, px, reason
-        self.pnl = (self.entry_px - px) * self.qty
+        self.gross = (self.entry_px - px) * self.qty
+        self.fees = charges(self.date, self.entry_px, px, self.qty, p.brokerage, p.stt_override) \
+            if p is not None and p.charges_on else 0.0
+        self.pnl = self.gross - self.fees
 
 
 def session_vwap(bars: pd.DataFrame, source: str) -> pd.Series:
@@ -105,7 +128,7 @@ def run_day(day, spot5: pd.DataFrame, opt1: Dict[Tuple[str, float], pd.DataFrame
                 mtm = realised + (open_t.entry_px - mark) * qty
                 if mtm <= -cap_inr:
                     fill = px((open_t.side[-2:], open_t.strike), ts, "open") or mark
-                    open_t.close(ts, fill + p.slippage, "LOSS_CAP")
+                    open_t.close(ts, fill + p.slippage, "LOSS_CAP", p)
                     realised += open_t.pnl
                     open_t, halted = None, True
         if halted:
@@ -118,7 +141,7 @@ def run_day(day, spot5: pd.DataFrame, opt1: Dict[Tuple[str, float], pd.DataFrame
                 fill = px(key, ts, "open")
                 if fill is None:  # fall back to last known close
                     fill = float(opt1[key]["close"].iloc[-1])
-                open_t.close(ts, fill + p.slippage, "EOD")
+                open_t.close(ts, fill + p.slippage, "EOD", p)
                 realised += open_t.pnl
                 open_t = None
             break
@@ -131,7 +154,7 @@ def run_day(day, spot5: pd.DataFrame, opt1: Dict[Tuple[str, float], pd.DataFrame
                 old_fill = px((typ, open_t.strike), ts, "open")
                 new_fill = px((typ, new_strike), ts, "open") if new_strike is not None else None
                 if new_strike != open_t.strike and old_fill is not None and new_fill is not None:
-                    open_t.close(ts, old_fill + p.slippage, "ROLL")
+                    open_t.close(ts, old_fill + p.slippage, "ROLL", p)
                     realised += open_t.pnl
                     open_t = Trade(day, open_t.side, new_strike, ts, new_fill - p.slippage, qty=qty)
                     trades.append(open_t)
@@ -146,7 +169,7 @@ def run_day(day, spot5: pd.DataFrame, opt1: Dict[Tuple[str, float], pd.DataFrame
                     key = (open_t.side[-2:], open_t.strike)
                     fill = px(key, ts, "open")
                     if fill is not None:
-                        open_t.close(ts, fill + p.slippage, "REVERSAL")
+                        open_t.close(ts, fill + p.slippage, "REVERSAL", p)
                         realised += open_t.pnl
                         open_t = None
                         cool_until = ts + timedelta(minutes=p.cooloff_min)
@@ -161,5 +184,5 @@ def run_day(day, spot5: pd.DataFrame, opt1: Dict[Tuple[str, float], pd.DataFrame
     # safety: anything still open at data end
     if open_t is not None:
         key = (open_t.side[-2:], open_t.strike)
-        open_t.close(ts, float(opt1[key]["close"].iloc[-1]) + p.slippage, "DATA_END")
+        open_t.close(ts, float(opt1[key]["close"].iloc[-1]) + p.slippage, "DATA_END", p)
     return trades

@@ -44,6 +44,7 @@ def stats(tr: pd.DataFrame, capital: float) -> dict:
             "profit_factor": round(w.sum() / -l.sum(), 2) if l.sum() < 0 else None,
             "avg_trade": round(tr.pnl.mean(), 0), "best_day": round(d.max(), 0),
             "worst_day": round(d.min(), 0), "max_drawdown": round(dd, 0),
+            "gross_pnl": round(tr.gross.sum(), 0), "charges": round(tr.fees.sum(), 0),
             "return_%_on_capital": round(100 * tr.pnl.sum() / capital, 2),
             "loss_cap_days": int((tr.reason == "LOSS_CAP").sum())}
 
@@ -64,6 +65,9 @@ def main():
     ap.add_argument("--slippage", type=float, default=1.0)
     ap.add_argument("--roll-decay", type=float, default=0.60, help="0 disables roll-down")
     ap.add_argument("--trade-first-candle", action="store_true")
+    ap.add_argument("--brokerage", type=float, default=20.0)
+    ap.add_argument("--no-charges", action="store_true")
+    ap.add_argument("--stt", type=float, default=None, help="override option STT rate, e.g. 0.0015")
     ap.add_argument("--vwap", default="volume", choices=["volume", "typical"])
     a = ap.parse_args()
     d = Path(a.cache)
@@ -81,6 +85,7 @@ def main():
         print("WARNING: index volume is zero -> VWAP falls back to unweighted typical price.")
     p = Params(cooloff_min=a.cooloff, loss_cap_pct=a.loss_cap, capital=a.capital, lots=a.lots,
                lot_size=a.lot_size, slippage=a.slippage, vwap_source=a.vwap,
+               brokerage=a.brokerage, charges_on=not a.no_charges, stt_override=a.stt,
                roll_decay=a.roll_decay, skip_first_candle=not a.trade_first_candle)
     tr = run(sp, op, p)
     tr.to_csv(d / "trades.csv", index=False)
