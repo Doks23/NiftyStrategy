@@ -62,6 +62,8 @@ def main():
     ap.add_argument("--loss-cap", type=float, default=1.8)
     ap.add_argument("--cooloff", type=int, default=3)
     ap.add_argument("--slippage", type=float, default=1.0)
+    ap.add_argument("--roll-decay", type=float, default=0.60, help="0 disables roll-down")
+    ap.add_argument("--trade-first-candle", action="store_true")
     ap.add_argument("--vwap", default="volume", choices=["volume", "typical"])
     a = ap.parse_args()
     d = Path(a.cache)
@@ -78,7 +80,8 @@ def main():
     if sp.volume.sum() == 0 and a.vwap == "volume":
         print("WARNING: index volume is zero -> VWAP falls back to unweighted typical price.")
     p = Params(cooloff_min=a.cooloff, loss_cap_pct=a.loss_cap, capital=a.capital, lots=a.lots,
-               lot_size=a.lot_size, slippage=a.slippage, vwap_source=a.vwap)
+               lot_size=a.lot_size, slippage=a.slippage, vwap_source=a.vwap,
+               roll_decay=a.roll_decay, skip_first_candle=not a.trade_first_candle)
     tr = run(sp, op, p)
     tr.to_csv(d / "trades.csv", index=False)
     for k, v in stats(tr, a.capital).items():

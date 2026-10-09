@@ -21,7 +21,7 @@ def opts(minutes, ce, pe, strike=100):
     return {("CE", strike): mk(ce), ("PE", strike): mk(pe)}
 
 
-P = Params(slippage=0, lots=1, lot_size=1, capital=1000, loss_cap_pct=1.8, cooloff_min=3)
+P = Params(roll_decay=0, skip_first_candle=False, slippage=0, lots=1, lot_size=1, capital=1000, loss_cap_pct=1.8, cooloff_min=3)
 atm = lambda ts, typ: 100
 
 
@@ -51,6 +51,17 @@ def test_eod_squareoff():
     s = spot([100, 105] + [106] * 70)
     tr = run_day(D, s, opts(400, lambda i: 50, lambda i: 40), atm, P)
     assert tr[-1].reason == "EOD" and tr[-1].exit_ts.hour == 15 and tr[-1].exit_ts.minute == 15
+
+
+def test_roll_down_and_first_candle_skip():
+    s = spot([100, 105, 106, 107, 108, 109, 110, 111])
+    ce = lambda i: 50
+    pe = lambda i: 40 if i < 12 else 10      # premium decays 75% -> roll
+    o = opts(40, ce, pe, 100); o.update(opts(40, ce, lambda i: 40 if i < 12 else 10, 150))
+    q = Params(roll_decay=0.6, skip_first_candle=True, slippage=0, lots=1, lot_size=1, capital=1000)
+    tr = run_day(D, s, o, lambda ts, typ: 100 if ts < T0 + timedelta(minutes=12) else 150, q)
+    assert tr[0].entry_ts == T0 + timedelta(minutes=10)      # 09:15 candle skipped (09:20 close ignored)
+    assert tr[0].reason == "ROLL" and tr[1].strike == 150 and tr[1].side == "SELL_PE"
 
 
 if __name__ == "__main__":

@@ -32,6 +32,8 @@ class Params:
     slippage: float = 1.0             # option points, each side, against us
     squareoff: time = time(15, 15)
     vwap_source: str = "volume"       # "volume" (needs volume) or "typical" (unweighted)
+    roll_decay: float = 0.60          # roll down when premium has decayed this much from entry; 0 = off
+    skip_first_candle: bool = True    # ignore the 09:15 candle for signals (still in VWAP)
 
 
 @dataclass
@@ -76,7 +78,9 @@ def run_day(day, spot5: pd.DataFrame, opt1: Dict[Tuple[str, float], pd.DataFrame
     vwap = session_vwap(spot5, p.vwap_source)
     step = timedelta(minutes=p.candle_min)
     # candle-close time -> (close, vwap)
-    closes = {ts + step: (row.close, vwap[ts]) for ts, row in spot5.iterrows()}
+    first = spot5.index[0]
+    closes = {ts + step: (row.close, vwap[ts]) for ts, row in spot5.iterrows()
+              if not (p.skip_first_candle and ts == first)}
     qty = p.lots * p.lot_size
     cap_inr = p.capital * p.loss_cap_pct / 100.0
 
@@ -118,6 +122,19 @@ def run_day(day, spot5: pd.DataFrame, opt1: Dict[Tuple[str, float], pd.DataFrame
                 realised += open_t.pnl
                 open_t = None
             break
+        # 2b) roll-down: premium decayed >= roll_decay from this leg's entry -> re-sell at new ATM
+        if open_t is not None and p.roll_decay > 0:
+            typ = open_t.side[-2:]
+            mark = px((typ, open_t.strike), ts - timedelta(minutes=1), "close")
+            if mark is not None and mark <= open_t.entry_px * (1 - p.roll_decay):
+                new_strike = atm_at(ts, typ)
+                old_fill = px((typ, open_t.strike), ts, "open")
+                new_fill = px((typ, new_strike), ts, "open") if new_strike is not None else None
+                if new_strike != open_t.strike and old_fill is not None and new_fill is not None:
+                    open_t.close(ts, old_fill + p.slippage, "ROLL")
+                    realised += open_t.pnl
+                    open_t = Trade(day, open_t.side, new_strike, ts, new_fill - p.slippage, qty=qty)
+                    trades.append(open_t)
         # 3) signal at candle close
         if ts in closes:
             c, v = closes[ts]
