@@ -83,12 +83,56 @@ def adj_factor(close: pd.DataFrame, prevclose: pd.DataFrame, tol: float = 0.02) 
     return f[::-1].cumprod()[::-1].shift(-1).fillna(1.0)
 
 
-def build_panel(out="data/bhav/panel.pkl"):
-    files = sorted(f for f in os.listdir(RAW) if f.endswith(".csv"))
+def yf_split_factors(syms, dates: pd.DatetimeIndex) -> pd.DataFrame:
+    """Split/bonus ratios from yfinance (new UDiFF bhavcopy does NOT adjust PrvsClsgPric)."""
+    import yfinance as yf
+    out = pd.DataFrame(1.0, index=dates, columns=syms)
+    tick = [s + ".NS" for s in syms]
+    for k in range(0, len(tick), 200):
+        d = yf.download(tick[k:k + 200], start=dates[0], end=dates[-1] + pd.Timedelta(days=2), actions=True,
+                        progress=False, group_by="ticker", threads=True)
+        for t in tick[k:k + 200]:
+            try:
+                sp = d[t]["Stock Splits"].dropna()
+            except KeyError:
+                continue
+            sp.index = pd.DatetimeIndex(sp.index).tz_localize(None)
+            for dt, r in sp[sp > 0].items():
+                if dt in out.index:
+                    out.loc[dt, t[:-3]] = 1.0 / r  # multiplier for earlier prices
+    return out
+
+
+def gap_split_factors(close: pd.DataFrame, open_: pd.DataFrame, tol: float = 0.04) -> pd.DataFrame:
+    """Fallback: overnight ratio within tol of a common split/bonus ratio -> treat as corporate action."""
+    r = close.ffill().shift(1) / open_
+    f = pd.DataFrame(1.0, index=close.index, columns=close.columns)
+    for k in (2, 3, 4, 5, 10, 1.5):
+        f = f.mask(((r / k - 1).abs() < tol) & (f == 1.0), 1.0 / k)
+    return f
+
+
+def build_panel(start="2000-01-01", out="data/bhav/panel.pkl"):
+    s0 = pd.Timestamp(start).strftime("%Y%m%d")
+    files = sorted(f for f in os.listdir(RAW) if f.endswith(".csv") and f[:8] >= s0)
     long = pd.concat([parse(f"{RAW}/{f}") for f in files], ignore_index=True)
     long = long.drop_duplicates(["date", "sym"])
     P = {k: long.pivot(index="date", columns="sym", values=k).astype(float) for k in ["o", "h", "l", "c", "pc", "v", "val"]}
-    cum = adj_factor(P["c"], P["pc"])
+    cum = adj_factor(P["c"], P["pc"])  # old-format files (PREVCLOSE adjusted on ex-date)
+    new = P["c"].index >= NEW_FROM
+    if new.any():
+        liquid = list(P["val"].columns[(P["val"].loc[new].mean() / 1e7) >= 1])  # >= Rs 1 cr/day
+        f = gap_split_factors(P["c"], P["o"]).loc[new]
+        yfx = yf_split_factors(liquid, P["c"].index[new])
+        f[liquid] = yfx.where(yfx != 1.0, f[liquid])
+        f = f.reindex(P["c"].index).fillna(1.0)
+        cum = cum * f[::-1].cumprod()[::-1].shift(-1).fillna(1.0)
+    # second pass: any remaining opening gap down >30% vs adjusted prior close is a corporate action
+    # (bonus+split combos yfinance under-reports, demergers); intraday crashes are left alone
+    ac = (P["c"] * cum).ffill().shift(1)
+    g = (P["o"] * cum) / ac
+    f2 = g.where(g < 0.7, 1.0).fillna(1.0)
+    cum = cum * f2[::-1].cumprod()[::-1].shift(-1).fillna(1.0)
     panel = dict(Open=P["o"] * cum, High=P["h"] * cum, Low=P["l"] * cum, Close=P["c"] * cum,
                  Volume=P["v"] / cum, Turnover=P["val"])
     pd.to_pickle(panel, out)
@@ -97,8 +141,8 @@ def build_panel(out="data/bhav/panel.pkl"):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--from", dest="start", default="2016-01-01")
+    ap.add_argument("--from", dest="start", default="2025-06-01")
     ap.add_argument("--to", dest="end", default=pd.Timestamp.today().strftime("%Y-%m-%d"))
     a = ap.parse_args()
     download(a.start, a.end)
-    build_panel()
+    build_panel(a.start)

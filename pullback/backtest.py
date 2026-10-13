@@ -66,6 +66,7 @@ class P:
     trail_ema: int = 9        # 9 | 21 | 50 ; 0 = no trail
     time_stop: int = 0        # exit at close after N days if < 1R (0 = off)
     cost_bps: float = 10
+    breadth_min: float = 0.0  # only take entries when >= this share of liquid stocks close above EMA50
 
 
 def load_yf(tickers, suffix, start, cache) -> dict:
@@ -125,6 +126,13 @@ def indicators(pn: dict) -> dict:
     ind["avwap"] = pd.DataFrame(avwap_from_high(H.values, tp, V.values), index=C.index, columns=C.columns)
     if "Turnover" in pn:
         ind["to_cr"] = (pn["Turnover"] / 1e7).rolling(20, min_periods=15).mean()
+        etf = C.columns.str.contains("ETF|BEES|GOLD|SILVER|LIQUID|NIFTY|SENSEX|^MON|IETF|CASE|^MAFANG|^MAHKTECH")
+        ind["is_etf"] = pd.Series(etf, index=C.columns)
+        liq = ind["to_cr"] >= 5
+    else:
+        liq = C.notna()
+    above = (C > ind["e50"]) & liq
+    ind["breadth"] = above.sum(axis=1) / liq.sum(axis=1).replace(0, np.nan)
     return ind
 
 
@@ -134,6 +142,9 @@ def signals(ind: dict, p: P) -> pd.DataFrame:
     ok &= (ind["mom"] >= p.min_mom) & (ind["adr"] >= p.min_adr) & (C >= p.min_price)
     if "to_cr" in ind:
         ok &= ind["to_cr"] >= p.min_turnover_cr
+        ok.loc[:, ind["is_etf"].values] = False
+    if p.breadth_min:
+        ok = ok.mul(ind["breadth"] >= p.breadth_min, axis=0).astype(bool)
     touch = False
     for s in ("e9", "e21", "avwap"):
         touch = touch | ((L <= ind[s] * (1 + p.touch_tol)) & (C > ind[s]))
@@ -262,6 +273,8 @@ def main():
     ap.add_argument("--risk", type=float, default=0.005)
     ap.add_argument("--min-adr", type=float, default=None)
     ap.add_argument("--min-turnover", type=float, default=10.0, help="Rs crore, bhavcopy only")
+    ap.add_argument("--trade-from", default=None, help="single test window from this date (skips train/test split)")
+    ap.add_argument("--breadth", type=float, default=0.0, help="market filter: min share of stocks above EMA50")
     ap.add_argument("--panel", default="data/bhav/panel.pkl")
     ap.add_argument("--out", default="pullback/results")
     a = ap.parse_args()
@@ -276,8 +289,11 @@ def main():
     first = str(ind["Close"].index[0] + pd.Timedelta(days=365))[:10]
     rows = []
     for name, p in VARIANTS.items():
-        p = replace(p, min_adr=a.min_adr or adr, cost_bps=cost, risk_pct=a.risk, min_turnover_cr=a.min_turnover)
-        for period, (s0, s1) in {"train": (first, a.split), "test": (a.split, None), "full": (first, None)}.items():
+        p = replace(p, min_adr=a.min_adr or adr, cost_bps=cost, risk_pct=a.risk, min_turnover_cr=a.min_turnover,
+                    breadth_min=a.breadth)
+        periods = {"full": (a.trade_from, None)} if a.trade_from else \
+            {"train": (first, a.split), "test": (a.split, None), "full": (first, None)}
+        for period, (s0, s1) in periods.items():
             tr, eq = run(ind, p, s0, s1)
             rows.append(dict(variant=name, period=period, **stats(tr, eq)))
             if period == "full":
