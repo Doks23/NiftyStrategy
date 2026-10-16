@@ -2,7 +2,8 @@
 // Momentum -> Base -> Contraction -> Breakout indicator (one signal per base).
 //  Blue bg = momentum (hVol gap / orderly persistent buying)   Orange bg = base (pullback)
 //  Orange dots = contraction (ATR contraction AND EMA compression AND tight closes / inside day)
-//  Green candle = breakout (first close above the contraction high, range expansion, close near high, volume)
+//  Green candle = entry. Default: day after a contraction dot, opening-window (11 min) volume >= 8% of
+//  50d avg daily volume, buy on break of the opening-range high. Alt mode: daily breakout close.
 // State machine: IDLE -> MOMENTUM -> BASE -> (contraction) -> BREAKOUT -> back to MOMENTUM (needs a new base).
 // Trade levels (visual only): stop = tighter of contraction low / 2.5%, BE at 2R, book 25% at 4R,
 // sell all on a daily close below EMA21.
@@ -39,6 +40,13 @@ closePos    = input.float(0.65, "Close in top x of bar range", group = grpX)
 volMult     = input.float(1.2, "Volume >= x 50d avg", group = grpX)
 cooldown    = input.int(10, "Min bars between signals", group = grpX)
 
+grpI = "Entry"
+entryMode   = input.string("Next-day ORH + RVOL", "Entry mode", options = ["Next-day ORH + RVOL", "Daily breakout close"], group = grpI)
+orMins      = input.int(11, "Opening window (minutes)", group = grpI)
+rvolPct     = input.float(8.0, "Volume in opening window >= % of 50d avg daily volume", group = grpI)
+ltf         = input.timeframe("1", "Intraday timeframe for ORH/RVOL", group = grpI)
+orhMode     = entryMode == "Next-day ORH + RVOL"
+
 grpE = "Trade levels"
 showLevels  = input.bool(true, "Show stop / target / exit markers", group = grpE)
 maxStopPct  = input.float(2.5, "Max stop % (tighter of contraction low / this)", group = grpE)
@@ -64,6 +72,32 @@ hiT   = ta.highest(high, tightLen)
 loT   = ta.lowest(low, tightLen)
 upCnt = math.sum(close > close[1] ? 1 : 0, upDaysLen)
 roc   = ta.roc(close, rocLen)
+
+// ───────── Intraday (lower-TF) data for next-day ORH entry ─────────
+[ltfT, ltfO, ltfH, ltfL, ltfV] = request.security_lower_tf(syminfo.tickerid, ltf, [time, open, high, low, volume])
+orVol   = 0.0
+orHigh  = float(na)
+trigPx  = float(na)   // entry fill: opening-range high, or the bar's open if it gapped above
+lowPre  = float(na)   // day low up to and including the trigger bar
+lowPost = float(na)   // lowest low after the trigger bar (same-day stop check)
+n = array.size(ltfT)
+if n > 0
+    t0 = array.get(ltfT, 0)
+    for k = 0 to n - 1
+        tk = array.get(ltfT, k)
+        hk = array.get(ltfH, k)
+        lk = array.get(ltfL, k)
+        if tk - t0 < orMins * 60000
+            orVol  += array.get(ltfV, k)
+            orHigh := na(orHigh) ? hk : math.max(orHigh, hk)
+            lowPre := na(lowPre) ? lk : math.min(lowPre, lk)
+        else if na(trigPx)
+            lowPre := math.min(lowPre, lk)
+            if hk > orHigh
+                trigPx := math.max(orHigh, array.get(ltfO, k))
+        else
+            lowPost := na(lowPost) ? lk : math.min(lowPost, lk)
+rvolOK = orVol >= rvolPct / 100 * nz(vAvg[1])
 
 mktClose = request.security(mktSym, "D", close, lookahead = barmerge.lookahead_off)
 mktEma   = request.security(mktSym, "D", ta.ema(close, mktLen), lookahead = barmerge.lookahead_off)
@@ -131,7 +165,7 @@ if state == 2 and contrTest and bar_index - momHighBar >= minBaseBars
 
 // breakout: first close above contraction high, within window, expansion, near high, volume
 rng = high - low
-if state == 2 and not na(contrHigh) and not contraction
+if not orhMode and state == 2 and not na(contrHigh) and not contraction
     inWindow  = bar_index - contrBar <= bkWindow
     firstPush = close > contrHigh and close[1] <= contrHigh
     expand    = rng >= rangeMult * atrF[1]
@@ -148,6 +182,17 @@ if state == 2 and not na(contrHigh) and not contraction
     else if bar_index - contrBar > bkWindow
         contrHigh := na   // contraction window expired; wait for a new one
 
+// next-day ORH entry: yesterday was a contraction dot, opening-window volume >= rvolPct of avg,
+// then price trades above the opening-range high (HOD at that time)
+orhSignal = false
+if orhMode and contraction[1] and state == 2 and rvolOK and not na(trigPx) and (na(lastSig) or bar_index - lastSig >= cooldown)
+    orhSignal := true
+    breakout := true
+    lastSig := bar_index
+    state := 1
+    momHigh := high
+    momHighBar := bar_index
+
 // ───────── Visuals ─────────
 bgcolor(state == 1 ? color.new(color.blue, 88) : state == 2 ? color.new(color.orange, 85) : na)
 plotshape(contraction, "Contraction", shape.circle, location.abovebar, color.orange, size = size.tiny)
@@ -159,8 +204,9 @@ plot(ema50, "EMA50", color.new(color.green, 30))
 // ───────── Trade levels (simulated, one setup at a time) ─────────
 // Stop = tighter of contraction low and entry - maxStopPct. BE at beR. Book partPct at partR.
 // Exit everything on a daily close below the trail EMA.
-stopCand = math.max(contrLow, close * (1 - maxStopPct / 100))
-stopDist = close - stopCand
+entryNow = orhSignal ? trigPx : close
+stopCand = orhSignal ? math.max(contrLow, lowPre, entryNow * (1 - maxStopPct / 100)) : math.max(contrLow, entryNow * (1 - maxStopPct / 100))
+stopDist = entryNow - stopCand
 signal   = breakout and mktOK and stopDist > 0
 
 var bool  active   = false
@@ -197,14 +243,21 @@ if exitNow
 
 if signal and not active
     active   := true
-    entryPx  := close
+    entryPx  := entryNow
     stopPx   := stopCand
     riskR    := stopDist
     atBE     := false
     booked   := false
     entryBar := bar_index
     if showLevels
-        label.new(bar_index, low, "BUY " + str.tostring(close, format.mintick) + "\nSL " + str.tostring(stopCand, format.mintick) + " (" + str.tostring(stopDist / close * 100, "#.#") + "%)", style = label.style_label_up, color = color.new(color.lime, 10), textcolor = color.black, size = size.small)
+        label.new(bar_index, low, (orhSignal ? "BUY ORH " : "BUY ") + str.tostring(entryNow, format.mintick) + "\nSL " + str.tostring(stopCand, format.mintick) + " (" + str.tostring(stopDist / entryNow * 100, "#.#") + "%)", style = label.style_label_up, color = color.new(color.lime, 10), textcolor = color.black, size = size.small)
+
+// same-day stop for intraday entries
+if active and entryBar == bar_index and orhSignal and not na(lowPost) and lowPost <= stopPx
+    active := false
+    exitNow := true
+    if showLevels
+        label.new(bar_index, high, "Exit\nSame-day stop", style = label.style_label_down, color = color.new(color.red, 20), textcolor = color.white, size = size.small)
 
 plot(showLevels and active ? stopPx : na, "Stop", color.red, 2, plot.style_linebr)
 plot(showLevels and active and not atBE ? entryPx + beR * riskR : na, "BE trigger", color.gray, 1, plot.style_linebr)
@@ -213,5 +266,5 @@ plot(emaTr, "Exit EMA", color.new(color.purple, 40))
 
 // ───────── Alerts ─────────
 alertcondition(signal, "Breakout", "{{ticker}} momentum-base breakout, close {{close}}")
-alertcondition(contraction, "Contraction", "{{ticker}} contraction in base (setup developing)")
+alertcondition(contraction, "Contraction (arm for next-day ORH)", "{{ticker}} contraction in base (setup developing)")
 alertcondition(exitNow, "Exit", "{{ticker}} exit signal (stop or trail EMA)")
