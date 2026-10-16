@@ -145,8 +145,8 @@ if strategy.position_size > 0
         parted := true
         stopPx := math.max(stopPx, entryPx)
     if partR > 0 and not parted
-        strategy.exit("Part", "L", qty_percent = partPct, limit = entryPx + partR * initR, stop = stopPx, comment_limit = "Partial", comment_stop = "Stop")
-    strategy.exit("Rest", "L", stop = stopPx, comment_stop = parted ? "BE stop" : "Stop")
+        strategy.exit("Part", "L", qty_percent = partPct, limit = entryPx + partR * initR, stop = stopPx, comment_profit = "Partial", comment_loss = "Stop")
+    strategy.exit("Rest", "L", stop = stopPx, comment_loss = parted ? "BE stop" : "Stop")
     // trail: daily close below trail EMA -> exit (fills at this close with process_orders_on_close)
     if close < emaTr and bar_index > strategy.opentrades.entry_bar_index(0)
         strategy.close("L", comment = "Trail EMA" + str.tostring(trailLen))
