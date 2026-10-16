@@ -1,0 +1,384 @@
+//@version=6
+// RVOL -> HOD Trigger  (mirrors src/opening_momentum_super_order.py, "strong_start")
+// Daily chart. Replays each morning from intraday bars and labels the day.
+//
+//   blue  = would have triggered      10% @9:20 / SL:3.7% 48.60
+//   grey  = RVOL cleared but the order was blocked, with the reason
+//
+//   RVOL%   = session volume so far / mean(last 21 daily volumes) * 100   [calculate_rvol_pct]
+//   entry   = round_up_to_tick(HOD)                                       [build_trade_plan]
+//   stop    = cap the LOD-derived stop at max_sl_pct, while enforcing min_sl_pct [build_trade_plan]
+//   trigger = high >= reference_HOD * (1 + breakout_confirm_pct/100)      [is_hod_trigger_ready]
+indicator("RVOL -> HOD Trigger", overlay = true, max_labels_count = 500, max_boxes_count = 500, max_lines_count = 500)
+
+// Hidden anchor plot keeps TradingView's indicator-output validator satisfied;
+// all visible output is still produced by the labels, lines, boxes, and table below.
+plot(na, title = "RVOL HOD Trigger anchor", display = display.none)
+
+gM = "Main"
+dispMode      = input.string("Full label", "Display mode", options = ["Full label", "Mini", "Off"], group = gM, tooltip = "Full label: RVOL, time, entry and stop.\nMini: one symbol per day - green when the stop held, red when it was taken out, grey when blocked.")
+minRvolPct    = input.float(9.0, "min_rvol_pct", step = 0.5, group = gM)
+lookbackDays  = input.int(21, "historical_lookback_days", minval = 2, group = gM, tooltip = "Days of daily volume averaged for RVOL. Live script uses 21.")
+showBlocked   = input.bool(true, "Show blocked days", group = gM)
+
+gW = "Window"
+intrabarTf    = input.timeframe("1", "Replay timeframe", options = ["1", "2", "3", "5"], group = gW, tooltip = "1 gives the exact trigger minute but only ~1 year of history. Step up for more history.")
+mktOpen       = input.string("09:15", "Market open (HH:MM)", group = gW)
+startDelayMin = input.int(3,  "start_delay_minutes",    minval = 0, group = gW)
+sessionMin    = input.int(11, "market_session_minutes", minval = 1, group = gW, tooltip = "Live config is 3 and 11 = 09:18-09:26.")
+
+gF = "Filters"
+nearMissFloor = input.float(80, "near_miss_rvol_floor_pct", step = 5, group = gF, tooltip = "A day whose peak RVOL got this close to min_rvol_pct but never crossed is still marked, as RVOL_LOW with the peak value. Without it a near miss draws nothing at all and looks identical to a day where nothing happened.")
+maxSlPct      = input.float(3.1, "max_sl_pct",                 step = 0.1, group = gF)
+minSlPct      = input.float(1.5, "min_sl_pct",                 step = 0.1, group = gF, tooltip = "Stop is min(LOD, entry*(1-this)) - it only ever WIDENS a too-tight stop, so SL% never prints below this.")
+minGapPct     = input.float(0.2, "min_ltp_prev_close_gap_pct", step = 0.1, group = gF)
+maxHodPcPct   = input.float(5.0, "max_hod_prev_close_pct",     step = 0.5, group = gF)
+prevLowBreach = input.float(1.0, "prev_low_breach_pct",        step = 0.1, group = gF)
+confirmPct    = input.float(0.05,"breakout_confirm_pct",       step = 0.01,group = gF)
+
+gO = "Outcome & score"
+slWatchDays = input.int(1, "Days to watch the stop after entry", minval = 0, group = gO, tooltip = "0 = the trigger day only. 1 = also the next day, and so on. The stop stays at its original price - it is not trailed.")
+showScore   = input.bool(true, "Show score", group = gO)
+scoreGreen  = input.float(40, "Success % counted as green", step = 5, group = gO)
+scorePos    = input.string("Top middle", "Score position", options = ["Top left", "Top middle", "Top right", "Middle left", "Middle right", "Bottom left", "Bottom middle", "Bottom right"], group = gO)
+scoreSize   = input.string("normal", "Score size", options = ["tiny", "small", "normal", "large", "huge"], group = gO)
+
+gL = "Display"
+showTrig    = input.bool(true,  "Show triggered days", group = gL)
+tintDay     = input.bool(false, "Tint the day in its outcome colour", group = gL)
+lblSize     = input.string("small", "Text size", options = ["tiny", "small", "normal"], group = gL)
+lblOffset   = input.float(1.2, "Label distance above candle (%)", step = 0.2, group = gL, tooltip = "Percent of price, not ATR: ATR scales with volatility, so on a stock that gaps 20% the label ends up miles from its candle.")
+miniOffset  = input.float(2.5, "Mini marker distance above candle (%)", step = 0.5, group = gL, tooltip = "Push this higher to clear markers from other indicators sitting above the bar.")
+markerSym   = input.string("◆", "Mini marker symbol", group = gL, tooltip = "Any character: ◆ ● ▲ ★ ✔ ■. Green when the stop held, red when it was taken out, grey when blocked.")
+showPrices  = input.bool(true, "Show entry / SL price (full label)", group = gL, tooltip = "On:  16%@9:25 / E:184.5 / S:181.1/1.9%\nOff: 16%@10m/1.9%")
+connectLine = input.bool(true, "Dotted line from wick to label", group = gL)
+
+C_WIN  = #089981
+C_LOSS = #F23645
+C_BLK  = color.new(color.gray, 25)
+C_OPEN = #F7931A   // still inside its stop-watch window: drawn, but not yet scored
+
+// ─────────────── Daily inputs, straight off the chart ───────────────
+avgVol    = ta.sma(volume, lookbackDays)[1]
+prevClose = close[1]
+prevLow   = low[1]
+openMins  = str.tonumber(str.substring(mktOpen, 0, 2)) * 60 + str.tonumber(str.substring(mktOpen, 3, 5))
+
+[loOpen, loHigh, loLow, loClose, loVol, loTime] = request.security_lower_tf(syminfo.tickerid, intrabarTf, [open, high, low, close, volume, time])
+
+roundUp(float x) => math.ceil(x  / syminfo.mintick) * syminfo.mintick
+roundDn(float x) => math.floor(x / syminfo.mintick) * syminfo.mintick
+
+// row_blockers() + build_trade_plan() for ONE quote snapshot (LTP, HOD, LOD).
+// Returns [blocker, entry, stop, sl%]; blocker is "" when the row passes.
+evalRow(float ltp, float hod, float lod, float rv) =>
+    float e    = roundUp(hod)
+    float raw  = math.min(lod, e * (1 - minSlPct / 100))
+    float stp  = roundDn(math.max(raw, e * (1 - maxSlPct / 100)))
+    float risk = e - stp
+    float sl   = risk > 0 and e > 0 ? risk / e * 100 : na
+    float hodPc= (hod - prevClose) / prevClose * 100
+    string blk = ltp <= prevClose * (1 + minGapPct / 100) ? "LTP_BLW_PRV_CLS"
+         : rv < minRvolPct                                ? "RVOL_LOW"
+         : hodPc > maxHodPcPct                            ? "RUN_HIGH"
+         : not na(prevLow) and lod < prevLow * (1 - prevLowBreach / 100) ? "PRV_LOW_BREACH"
+         : ""
+    [blk, e, stp, sl]
+
+int    trigTime = na
+float  trigRvol = na
+float  trigSl   = na
+float  trigStop = na
+float  trigEntry= na
+float  trigMins = na
+bool   slHit    = false
+bool   rvolMet  = false
+int    diagTime = na
+float  diagRvol = na
+float  diagSl   = na
+float  diagRef  = na
+string diagBlk  = ""
+
+n = array.size(loVol)
+if n > 0 and not na(avgVol) and avgVol > 0 and not na(prevClose) and prevClose > 0
+    float cum     = 0.0
+    float rHod    = na
+    float rLod    = na
+    float  rvolPeak   = na    // best RVOL seen in the window, for the near-miss marker
+    int    rvolPeakTm = na
+    float  rvolPeakSl = na
+    float  knownHod   = na    // the reference. Frozen once the row qualifies, exactly as known_hod is
+    float  pendingHod = na    // this bar's high, promoted into knownHod next bar while blocked
+    bool   eligible   = false
+    string breakBlk   = ""    // what refused the order on the bar the break actually happened
+
+    for i = 0 to n - 1
+        int   tm   = array.get(loTime, i)
+        float mins = hour(tm, syminfo.timezone) * 60 + minute(tm, syminfo.timezone) - openMins
+
+        // NSE pre-open (09:00-09:08) shows up as intrabars but is excluded from the daily
+        // bar. Letting it into the running low/high/volume inflates RVOL and pushes the stop
+        // below the day's actual low, so drop anything before the opening bell outright.
+        if mins < 0
+            continue
+
+        float o = array.get(loOpen,  i)
+        float h = array.get(loHigh,  i)
+        float l = array.get(loLow,   i)
+        float c = array.get(loClose, i)
+        float hodBefore = rHod
+        float lodBefore = rLod
+        cum  := cum + array.get(loVol, i)
+        rHod := na(rHod) ? h : math.max(rHod, h)
+        rLod := na(rLod) ? l : math.min(rLod, l)
+
+        // Already in. Follow the rest of the day looking for the stop being taken out.
+        if not na(trigTime)
+            if l <= trigStop
+                slHit := true
+                break
+            continue
+
+        if mins >= sessionMin
+            break
+
+        bool  canTrigger = mins >= startDelayMin
+        float rv         = cum / avgVol * 100
+        float thresh     = nz(knownHod) * (1 + confirmPct / 100)
+
+        // ── The trigger poll ──
+        // Live, the order fires on the first poll where LTP reaches the threshold, and the
+        // filters on THAT poll see the HOD at the threshold: the run has only just begun.
+        // Judging the break against this bar's closing snapshot folds the whole breakout
+        // minute into HOD, so SL% and the run read as if the move were already over.
+        // The stop is capped at max_sl_pct at the trigger snapshot.
+        if canTrigger and eligible and nz(knownHod) > 0 and h >= thresh
+            // Where was the low when price reached the threshold? Candle shape decides:
+            // green bars run open-low-high-close, so this bar's low came first; red bars run
+            // open-high-low-close, so the low came after the break and is not in the entry.
+            float lodX = c >= o ? math.min(nz(lodBefore, l), l) : math.min(nz(lodBefore, o), o)
+            float hodX = math.max(nz(hodBefore, thresh), thresh)
+            [blkX, eX, stX, slX] = evalRow(thresh, hodX, lodX, rv)
+            if blkX == ""
+                trigTime  := tm
+                trigRvol  := rv
+                trigEntry := eX
+                trigStop  := stX
+                trigSl    := slX
+                trigMins  := mins
+                // A red breakout bar puts its low AFTER the entry, so it can stop the
+                // trade out inside the same minute.
+                if c < o and l <= stX
+                    slHit := true
+                    break
+                continue
+            // The break happened and the filters refused it on that very tick. That is the
+            // real story of the day, and it outranks "was eligible at some point".
+            if breakBlk == ""
+                breakBlk := blkX
+                diagTime := tm
+                diagRvol := rv
+                diagSl   := slX
+
+        // ── Lifecycle, on this bar's closing snapshot ──
+        // Filters run from the OPEN, not from start_delay: scan_once updates known_hod /
+        // trigger_eligible BEFORE its can_trigger check, so a row that qualifies in warmup
+        // locks its reference then, and the break fires against it once the window opens.
+        [blk, eC, stC, sl] = evalRow(c, rHod, rLod, rv)
+        bool passed = blk == ""
+
+        // known_hod lifecycle, mirroring scan_once():
+        //   qualifying  -> lock at the current high, once
+        //   eligible    -> frozen, never updated again
+        //   blocked     -> tracks the day high one candle behind (hod_candle_seconds = 60)
+        if passed
+            if not eligible
+                knownHod   := math.max(nz(knownHod), nz(pendingHod), rHod)
+                pendingHod := rHod
+                eligible   := true
+        else
+            eligible   := false
+            knownHod   := math.max(nz(knownHod), nz(pendingHod))
+            pendingHod := rHod
+
+        if na(rvolPeak) or rv > rvolPeak
+            rvolPeak   := rv
+            rvolPeakTm := tm
+            rvolPeakSl := sl
+
+        // Freeze the diagnostic at the FIRST bar that cleared RVOL, not the last one in
+        // the window - otherwise every blocked day reports the same closing minute.
+        if rv >= minRvolPct
+            if not rvolMet
+                rvolMet  := true
+                diagTime := tm
+                diagRvol := rv
+                diagSl   := sl
+                diagBlk  := blk
+            if canTrigger and passed
+                diagBlk := "NO_BREAK"
+                diagRef := knownHod   // the level it had to clear and never did
+
+    if breakBlk != ""
+        diagBlk := breakBlk
+
+    // Near miss: RVOL got close but never crossed. Draw it rather than leaving the day
+    // blank, so "just missed the threshold" is distinguishable from "nothing happened".
+    if not rvolMet and not na(rvolPeak) and rvolPeak >= minRvolPct * nearMissFloor / 100
+        rvolMet  := true
+        diagRvol := rvolPeak
+        diagTime := rvolPeakTm
+        diagSl   := rvolPeakSl
+        diagBlk  := "RVOL_LOW"
+
+// ─────────────── Outcome, carried across days ───────────────
+bool trigWin  = not na(trigTime) and not slHit      // provisional: later days can still stop it out
+bool trigLoss = not na(trigTime) and slHit
+bool blocked  = na(trigTime) and rvolMet
+
+bool showWin  = showTrig    and trigWin
+bool showLoss = showTrig    and trigLoss
+bool showBlk  = showBlocked and blocked
+
+var float openStop = na
+var int   openLeft = 0
+var label openLbl  = na
+var box   openBox  = na
+var line  openLine = na
+var int   nWin     = 0
+var int   nLoss    = 0
+
+mini  = dispMode == "Mini"
+lblSz = lblSize == "tiny" ? size.tiny : lblSize == "normal" ? size.normal : size.small
+
+// A position opened on an earlier day: does today take the stop out?
+if openLeft > 0
+    if low <= openStop
+        nLoss := nLoss + 1
+        if not na(openLbl)
+            label.set_textcolor(openLbl, C_LOSS)
+        if not na(openBox)
+            box.set_bgcolor(openBox, color.new(C_LOSS, 85))
+        if not na(openLine)
+            line.set_color(openLine, C_LOSS)
+        openLeft := 0
+        openStop := na
+        openLbl  := na
+        openBox  := na
+        openLine := na
+    else
+        openLeft := openLeft - 1
+        if openLeft == 0
+            nWin     := nWin + 1
+            openStop := na
+            openLbl  := na
+            openBox  := na
+            openLine := na
+
+// ─────────────── Display ───────────────
+label newLbl  = na
+line  newLine = na
+float lblY    = high * (1 + (mini ? miniOffset : lblOffset) / 100)
+
+// with prices:  16%@9:25 / E:184.5 / S:181.1/1.9%
+// without:      16%@10m/1.9%
+trigTxt() =>
+    string t = str.tostring(trigRvol, "#") + "%@"
+    if showPrices
+        t := t + str.format_time(trigTime, "H:mm", syminfo.timezone)
+        t := t + "\nE:" + str.tostring(trigEntry, "#.##")
+        t := t + "\nS:" + str.tostring(trigStop, "#.##") + "/" + str.tostring(trigSl, "#.#") + "%"
+    else
+        t := t + str.tostring(trigMins, "#") + "m/" + str.tostring(trigSl, "#.#") + "%"
+    t
+
+if mini and (showWin or showLoss or showBlk)
+    newLbl := label.new(bar_index, lblY, markerSym,
+         style = label.style_none, textcolor = showWin ? C_WIN : showLoss ? C_LOSS : C_BLK,
+         textalign = text.align_center, size = lblSz)
+
+if dispMode == "Full label"
+    if showWin or showLoss
+        newLbl := label.new(bar_index, lblY, trigTxt(),
+             style = label.style_none, textcolor = slHit ? C_LOSS : C_WIN,
+             textalign = text.align_center, size = lblSz)
+    else if showBlk
+        newLbl := label.new(bar_index, lblY,
+             str.tostring(diagRvol, "#") + "%@" + str.format_time(diagTime, "H:mm", syminfo.timezone) +
+             "\n" + diagBlk +
+                  (diagBlk == "NO_BREAK" and not na(diagRef) ? " " + str.tostring(diagRef, "#.##") : ""),
+             style = label.style_none, textcolor = C_BLK, textalign = text.align_center, size = lblSz)
+
+// Dotted stem from the top of the wick up to the text, so a label that has been pushed
+// clear of other indicators still reads as belonging to its candle.
+if connectLine and not na(newLbl)
+    newLine := line.new(bar_index, high, bar_index, lblY, xloc = xloc.bar_index,
+         color = showWin ? C_WIN : showLoss ? C_LOSS : C_BLK,
+         style = line.style_dotted, width = 1)
+
+// A box, not bgcolor: bgcolor is painted on the bar as it is processed and can never be
+// revised, so a day later flipped to a loss would have kept its green wash.
+box newBox = na
+if tintDay and (showWin or showLoss)
+    newBox := box.new(bar_index, high, bar_index, low, border_color = color.new(color.gray, 100),
+         bgcolor = color.new(showLoss ? C_LOSS : C_WIN, 85))
+
+// ─────────────── Book the trigger ───────────────
+if not na(trigTime)
+    // A position still open when the next trigger arrives used to be overwritten right here:
+    // it never resolved, never reached the score, and its marker stayed provisionally green
+    // for ever. Close it out first - it was never stopped on any bar it was watched.
+    if openLeft > 0
+        nWin     := nWin + 1
+        openLeft := 0
+        openStop := na
+        openLbl  := na
+        openBox  := na
+        openLine := na
+    if slHit
+        nLoss := nLoss + 1
+    else if slWatchDays <= 0
+        nWin := nWin + 1
+    else
+        openStop := trigStop
+        openLeft := slWatchDays
+        openLbl  := newLbl
+        openBox  := newBox
+        openLine := newLine
+
+// Anything still inside its watch window at the right edge is drawn but NOT scored yet.
+// Amber says so, instead of leaving it green and looking like an uncounted win.
+if barstate.islast and openLeft > 0 and not na(openLbl)
+    label.set_textcolor(openLbl, C_OPEN)
+
+// ─────────────── Score ───────────────
+scorePosition = scorePos == "Top left"      ? position.top_left      :
+                 scorePos == "Top middle"    ? position.top_center    :
+                 scorePos == "Top right"     ? position.top_right     :
+                 scorePos == "Middle left"   ? position.middle_left   :
+                 scorePos == "Middle right"  ? position.middle_right  :
+                 scorePos == "Bottom left"   ? position.bottom_left   :
+                 scorePos == "Bottom middle" ? position.bottom_center : position.bottom_right
+
+scoreTxtSize = scoreSize == "tiny"  ? size.tiny  : scoreSize == "small" ? size.small :
+               scoreSize == "large" ? size.large : scoreSize == "huge"  ? size.huge  : size.normal
+
+// "Score: 30%@8/27" - one row of cells rather than one string, so the success rate and the
+// positive count can carry their own colours.
+// Created at a fixed position, then moved: table.new wants a constant, and set_position
+// also lets the input take effect without re-adding the indicator.
+var table st = table.new(position.top_center, 6, 1, border_width = 0)
+if showScore and barstate.islast
+    table.set_position(st, scorePosition)
+    int   total = nWin + nLoss
+    float succ  = total > 0 ? nWin / total * 100 : na
+    // chart.fg_color tracks the theme, so this stays legible on a white chart as well as dark.
+    color neutral = chart.fg_color
+    color plate   = color.new(chart.bg_color, 10)
+    table.cell(st, 0, 0, "Score: ", text_color = neutral, bgcolor = plate, text_size = scoreTxtSize)
+    table.cell(st, 1, 0, na(succ) ? "-" : str.tostring(succ, "#") + "%",
+         text_color = na(succ) ? neutral : succ > scoreGreen ? C_WIN : C_LOSS, bgcolor = plate, text_size = scoreTxtSize)
+    table.cell(st, 2, 0, "@", text_color = neutral, bgcolor = plate, text_size = scoreTxtSize)
+    table.cell(st, 3, 0, str.tostring(nWin), text_color = C_WIN, bgcolor = plate, text_size = scoreTxtSize)
+    table.cell(st, 4, 0, "/" + str.tostring(total), text_color = neutral, bgcolor = plate, text_size = scoreTxtSize)
+    table.cell(st, 5, 0, openLeft > 0 ? "  +1 open" : "", text_color = C_OPEN, bgcolor = plate, text_size = scoreTxtSize)

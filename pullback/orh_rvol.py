@@ -4,10 +4,9 @@ Flow
   1. Daily state machine (same rules/defaults as pine/momentum_base_breakout_indicator.pine) on the
      bhavcopy panel -> contraction days inside a base.
   2. Day after each contraction (only if still in the base): pull 1-min candles from DhanHQ.
-  3. Opening window 09:15-09:25 (11 x 1-min bars): volume >= rvol_pct of 50d avg daily volume.
-  4. Entry: first 1-min bar after the window whose high > opening-range high; fill = max(ORH, bar open).
-  5. Stop = tightest of contraction low, day low up to the entry bar, entry*(1-max_stop).
-     Same-day stop checked on the remaining 1-min bars.
+  3-5. Entry = exact port of pine/rvol_hod_trigger.pine (RVOL vs 21d avg volume >= 9%, 09:18-09:26
+     window, HOD break +0.05%, stop = LOD widened to >=1.5% and capped at 3.1%, gap / run-high /
+     prev-low filters). Same-day stop checked on the remaining 1-min bars.
   6. Following days on daily bars: breakeven at 2R, book 25% at 4R, sell all next open after a
      close below EMA21. Costs 0.15% per side.
 
@@ -39,8 +38,10 @@ class Cfg:
     pb_min: float = 5.0; pb_max: float = 25.0; min_base_bars: int = 3
     # contraction
     atr_ratio: float = 0.85; ema_comp: float = 1.0; tight_len: int = 3; tight_atr: float = 0.8
-    # entry
-    or_mins: int = 11; rvol_pct: float = 8.0
+    # entry: RVOL -> HOD trigger (pine/rvol_hod_trigger.pine / opening_momentum_super_order.py)
+    or_mins: int = 11; rvol_pct: float = 9.0; rvol_lookback: int = 21; start_delay: int = 3
+    max_sl_pct: float = 3.1; min_sl_pct: float = 1.5; min_gap_pct: float = 0.2; max_hod_pc_pct: float = 5.0
+    prev_low_breach_pct: float = 1.0; confirm_pct: float = 0.05; tick: float = 0.05
     # exits
     max_stop: float = 0.025; be_R: float = 2.0; part_R: float = 4.0; part_frac: float = 0.25; trail: int = 21
     cost: float = 0.0015; min_turnover_cr: float = 10.0
@@ -168,12 +169,80 @@ def follow_daily(df: pd.DataFrame, i_entry: int, entry: float, stop: float, e21:
     return pnl + rem * (C[-1] - entry), "open", df.index[-1]
 
 
+def _eval_row(ltp, hod, lod, rv, prev_close, prev_low, k: Cfg):
+    """row_blockers() + build_trade_plan(): returns (blocker, entry, stop, sl_pct)."""
+    e = np.ceil(hod / k.tick - 1e-9) * k.tick
+    raw = min(lod, e * (1 - k.min_sl_pct / 100))
+    stp = np.floor(max(raw, e * (1 - k.max_sl_pct / 100)) / k.tick + 1e-9) * k.tick
+    sl = (e - stp) / e * 100 if e > stp > 0 else np.nan
+    hod_pc = (hod - prev_close) / prev_close * 100
+    if ltp <= prev_close * (1 + k.min_gap_pct / 100): blk = "LTP_BLW_PRV_CLS"
+    elif rv < k.rvol_pct: blk = "RVOL_LOW"
+    elif hod_pc > k.max_hod_pc_pct: blk = "RUN_HIGH"
+    elif prev_low and lod < prev_low * (1 - k.prev_low_breach_pct / 100): blk = "PRV_LOW_BREACH"
+    else: blk = ""
+    return blk, e, stp, sl
+
+
+def hod_trigger(m: pd.DataFrame, avg_vol: float, prev_close: float, prev_low: float, k: Cfg):
+    """Port of the RVOL -> HOD Trigger Pine replay. Returns dict or dict(blocked=reason)."""
+    if m.empty or not avg_vol or np.isnan(avg_vol) or not prev_close:
+        return dict(blocked="NO_DATA")
+    m = m.sort_values("ts").reset_index(drop=True)
+    open_t = m.ts.iloc[0].normalize() + pd.Timedelta(hours=9, minutes=15)
+    cum, rhod, rlod = 0.0, np.nan, np.nan
+    known, pending, eligible, trig, break_blk, rv_met = np.nan, np.nan, False, None, "", False
+    for r in m.itertuples(index=False):
+        mins = (r.ts - open_t).total_seconds() / 60
+        if mins < 0:
+            continue
+        o, h, l, c = r.open, r.high, r.low, r.close
+        hod_b, lod_b = rhod, rlod
+        cum += r.volume
+        rhod = h if np.isnan(rhod) else max(rhod, h)
+        rlod = l if np.isnan(rlod) else min(rlod, l)
+        if trig:
+            if l <= trig["stop"]:
+                trig["same_day_stop"] = True
+                break
+            continue
+        if mins >= k.or_mins:
+            break
+        rv = cum / avg_vol * 100
+        kh = 0.0 if np.isnan(known) else known
+        thresh = kh * (1 + k.confirm_pct / 100)
+        if mins >= k.start_delay and eligible and kh > 0 and h >= thresh:
+            lod_x = min(l if np.isnan(lod_b) else lod_b, l) if c >= o else min(o if np.isnan(lod_b) else lod_b, o)
+            hod_x = max(thresh if np.isnan(hod_b) else hod_b, thresh)
+            blk, e, stp, sl = _eval_row(thresh, hod_x, lod_x, rv, prev_close, prev_low, k)
+            if blk == "":
+                trig = dict(entry=e, stop=stp, sl_pct=sl, rvol=rv, t_entry=r.ts, same_day_stop=False)
+                if c < o and l <= stp:
+                    trig["same_day_stop"] = True
+                    break
+                continue
+            break_blk = break_blk or blk
+        blk, _, _, _ = _eval_row(c, rhod, rlod, rv, prev_close, prev_low, k)
+        if blk == "":
+            if not eligible:
+                known = np.nanmax([kh, pending if not np.isnan(pending) else 0.0, rhod])
+                pending, eligible = rhod, True
+        else:
+            eligible = False
+            known = max(kh, 0.0 if np.isnan(pending) else pending)
+            pending = rhod
+        rv_met = rv_met or rv >= k.rvol_pct
+    if trig:
+        return trig
+    return dict(blocked=break_blk or ("NO_BREAK" if rv_met else "RVOL_LOW"))
+
+
 # ───────── driver ─────────
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--panel", default="data/bhav/panel.pkl")
     ap.add_argument("--trade-from", default="2025-10-13")
-    ap.add_argument("--rvol", type=float, default=8.0)
+    ap.add_argument("--rvol", type=float, default=9.0)
     ap.add_argument("--or-mins", type=int, default=11)
     ap.add_argument("--out", default="pullback/results_orh")
     a = ap.parse_args()
@@ -202,10 +271,16 @@ def main():
             if s not in ids:
                 skipped["no_id"] += 1; continue
             m = minute_bars(hdr, ids[s], s, d1.date())
-            e = orh_entry(m, ev["vavg"], ev["contr_low"], k)
-            if not e:
-                skipped["no_rvol_or_break"] += 1; continue
             i1 = df.index.get_loc(d1)
+            if m.empty:
+                skipped["no_rvol_or_break"] += 1; continue
+            f = df.Open.iat[i1] / m.sort_values("ts").open.iat[0]   # panel is split-adjusted; Dhan 1-min is raw
+            if not 0.2 < f < 5: f = 1.0
+            m = m.assign(open=m.open * f, high=m.high * f, low=m.low * f, close=m.close * f, volume=m.volume / f)
+            avg21 = df.Volume.iloc[i1 - k.rvol_lookback:i1].mean()
+            e = hod_trigger(m, avg21, df.Close.iat[i1 - 1], df.Low.iat[i1 - 1], k)
+            if "blocked" in e:
+                skipped[e["blocked"]] = skipped.get(e["blocked"], 0) + 1; continue
             if e["same_day_stop"]:
                 pnl, why, xd = e["stop"] - e["entry"], "same-day stop", d1
             else:
@@ -213,7 +288,7 @@ def main():
             pnl -= 2 * k.cost * e["entry"]
             R = e["entry"] - e["stop"]
             rows.append(dict(sym=s, contraction=ev["date"].date(), entry_date=d1.date(), t_entry=e["t_entry"],
-                             or_vol_pct=round(e["or_vol_pct"], 1), entry=round(e["entry"], 2),
+                             rvol_pct=round(e["rvol"], 1), entry=round(e["entry"], 2),
                              stop_pct=round(R / e["entry"] * 100, 2), R=pnl / R, ret_pct=pnl / e["entry"] * 100,
                              why=why, exit_date=xd.date(), mkt=bool(mkt.asof(d1))))
             busy_until = xd
