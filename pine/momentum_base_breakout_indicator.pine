@@ -4,8 +4,8 @@
 //  Orange dots = contraction (ATR contraction AND EMA compression AND tight closes / inside day)
 //  Green candle = breakout (first close above the contraction high, range expansion, close near high, volume)
 // State machine: IDLE -> MOMENTUM -> BASE -> (contraction) -> BREAKOUT -> back to MOMENTUM (needs a new base).
-// Trade levels (visual only): stop = contraction low, target = N R (then stop -> breakeven),
-// exit marker on a close below the trail EMA.
+// Trade levels (visual only): stop = tighter of contraction low / 2.5%, BE at 2R, book 25% at 4R,
+// sell all on a daily close below EMA21.
 indicator("Momentum Base Breakout", overlay = true, max_labels_count = 500)
 
 // ───────── Inputs ─────────
@@ -41,9 +41,11 @@ cooldown    = input.int(10, "Min bars between signals", group = grpX)
 
 grpE = "Trade levels"
 showLevels  = input.bool(true, "Show stop / target / exit markers", group = grpE)
-maxStopPct  = input.float(8.0, "Skip if stop wider than %", group = grpE)
-partR       = input.float(3.0, "Target (R), 0 = off", group = grpE)
-trailLen    = input.int(21, "Trail EMA length (close below = exit)", group = grpE)
+maxStopPct  = input.float(2.5, "Max stop % (tighter of contraction low / this)", group = grpE)
+beR         = input.float(2.0, "Move stop to breakeven at (R)", group = grpE)
+partR       = input.float(4.0, "Book partial at (R), 0 = off", group = grpE)
+partPct     = input.float(25.0, "Partial size %", group = grpE)
+trailLen    = input.int(21, "Exit all on close below EMA", group = grpE)
 
 grpF = "Market filter"
 useMkt      = input.bool(true, "Signal only when index > its EMA", group = grpF)
@@ -155,15 +157,18 @@ plot(ema21, "EMA21", color.new(color.blue, 30))
 plot(ema50, "EMA50", color.new(color.green, 30))
 
 // ───────── Trade levels (simulated, one setup at a time) ─────────
-stopDist = close - contrLow
-stopOK   = stopDist > 0 and stopDist / close * 100 <= maxStopPct
-signal   = breakout and mktOK and stopOK
+// Stop = tighter of contraction low and entry - maxStopPct. BE at beR. Book partPct at partR.
+// Exit everything on a daily close below the trail EMA.
+stopCand = math.max(contrLow, close * (1 - maxStopPct / 100))
+stopDist = close - stopCand
+signal   = breakout and mktOK and stopDist > 0
 
 var bool  active   = false
 var float entryPx  = na
 var float stopPx   = na
-var float tgtPx    = na
-var bool  hitTgt   = false
+var float riskR    = na
+var bool  atBE     = false
+var bool  booked   = false
 var int   entryBar = na
 
 exitNow = false
@@ -171,16 +176,20 @@ exitWhy = ""
 if active and bar_index > entryBar
     if low <= stopPx
         exitNow := true
-        exitWhy := hitTgt ? "BE stop" : "Stop"
+        exitWhy := atBE ? "BE stop" : "Stop"
     else
-        if partR > 0 and not hitTgt and high >= tgtPx
-            hitTgt := true
+        if partR > 0 and not booked and high >= entryPx + partR * riskR
+            booked := true
+            if showLevels
+                label.new(bar_index, high, "Book " + str.tostring(partPct, "#") + "%\n@" + str.tostring(partR, "#.#") + "R", style = label.style_label_down, color = color.new(color.green, 20), textcolor = color.white, size = size.small)
+        if not atBE and high >= entryPx + beR * riskR
+            atBE := true
             stopPx := math.max(stopPx, entryPx)
             if showLevels
-                label.new(bar_index, high, str.tostring(partR, "#.#") + "R", style = label.style_label_down, color = color.new(color.green, 20), textcolor = color.white, size = size.small)
+                label.new(bar_index, high, "BE", style = label.style_label_down, color = color.new(color.gray, 20), textcolor = color.white, size = size.tiny)
         if close < emaTr
             exitNow := true
-            exitWhy := "Trail EMA" + str.tostring(trailLen)
+            exitWhy := "Close < EMA" + str.tostring(trailLen) + "\nsell all"
 if exitNow
     active := false
     if showLevels
@@ -189,16 +198,18 @@ if exitNow
 if signal and not active
     active   := true
     entryPx  := close
-    stopPx   := contrLow
-    tgtPx    := close + partR * stopDist
-    hitTgt   := false
+    stopPx   := stopCand
+    riskR    := stopDist
+    atBE     := false
+    booked   := false
     entryBar := bar_index
     if showLevels
-        label.new(bar_index, low, "BUY\nSL " + str.tostring(contrLow, format.mintick) + " (" + str.tostring(stopDist / close * 100, "#.#") + "%)", style = label.style_label_up, color = color.new(color.lime, 10), textcolor = color.black, size = size.small)
+        label.new(bar_index, low, "BUY " + str.tostring(close, format.mintick) + "\nSL " + str.tostring(stopCand, format.mintick) + " (" + str.tostring(stopDist / close * 100, "#.#") + "%)", style = label.style_label_up, color = color.new(color.lime, 10), textcolor = color.black, size = size.small)
 
 plot(showLevels and active ? stopPx : na, "Stop", color.red, 2, plot.style_linebr)
-plot(showLevels and active and partR > 0 and not hitTgt ? tgtPx : na, "Target", color.green, 1, plot.style_linebr)
-plot(emaTr, "Trail EMA", color.new(color.purple, 40))
+plot(showLevels and active and not atBE ? entryPx + beR * riskR : na, "BE trigger", color.gray, 1, plot.style_linebr)
+plot(showLevels and active and partR > 0 and not booked ? entryPx + partR * riskR : na, "Book target", color.green, 1, plot.style_linebr)
+plot(emaTr, "Exit EMA", color.new(color.purple, 40))
 
 // ───────── Alerts ─────────
 alertcondition(signal, "Breakout", "{{ticker}} momentum-base breakout, close {{close}}")
