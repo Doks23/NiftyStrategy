@@ -1,0 +1,162 @@
+//@version=6
+// Momentum -> Base -> Contraction -> Breakout indicator.
+//  Blue bg = momentum (hVol gap / orderly persistent buying)   Orange bg = base (pullback)
+//  Orange dots = contraction (ATR contraction, EMA compression, tight closes / inside day)
+//  Green candle = breakout signal (range expansion out of contraction, close near high)
+// Trade levels (visual only): stop = contraction low, target = N R (then stop -> breakeven),
+// exit marker on a close below the trail EMA.
+indicator("Momentum Base Breakout", overlay = true, max_labels_count = 500, max_lines_count = 500)
+
+// ───────── Inputs ─────────
+grpM = "1. Momentum"
+gapPct      = input.float(3.0, "hVol gap: min gap %", group = grpM)
+gapVolMult  = input.float(2.0, "hVol gap: volume x 50d avg", group = grpM)
+rocLen      = input.int(20, "Orderly buying: ROC length", group = grpM)
+rocMin      = input.float(20.0, "Orderly buying: min ROC %", group = grpM)
+upDaysLen   = input.int(10, "Orderly buying: lookback", group = grpM)
+upDaysMin   = input.int(7, "Orderly buying: min up closes", group = grpM)
+momValid    = input.int(40, "Momentum valid for N bars", group = grpM)
+
+grpB = "2. Base / 3. Contraction"
+pbMinPct    = input.float(4.0, "Pullback: min % off momentum high", group = grpB)
+pbMaxPct    = input.float(30.0, "Pullback: max % off momentum high", group = grpB)
+atrFast     = input.int(5, "ATR fast", group = grpB)
+atrSlow     = input.int(20, "ATR slow", group = grpB)
+atrRatio    = input.float(0.8, "ATR contraction: fast/slow <=", group = grpB)
+emaCompATR  = input.float(1.0, "EMA compression: |EMA10-EMA21| <= x ATR", group = grpB)
+tightLen    = input.int(3, "Tight closes: bars", group = grpB)
+tightATR    = input.float(0.75, "Tight closes: close range <= x ATR", group = grpB)
+needEmaComp = input.bool(true, "Require EMA compression", group = grpB)
+
+grpX = "4. Breakout"
+bkWindow    = input.int(5, "Breakout within N bars of contraction", group = grpX)
+rangeMult   = input.float(1.2, "Range expansion: bar range >= x fast ATR", group = grpX)
+closePos    = input.float(0.75, "Close in top x of bar range", group = grpX)
+volMult     = input.float(1.0, "Volume >= x 50d avg", group = grpX)
+
+grpE = "Trade levels"
+showLevels  = input.bool(true, "Show stop / target / exit markers", group = grpE)
+stopMode    = input.string("Contraction low", "Initial stop", options = ["Contraction low", "Breakout bar low"], group = grpE)
+maxStopPct  = input.float(8.0, "Skip if stop wider than %", group = grpE)
+partR       = input.float(3.0, "Target (R), 0 = off", group = grpE)
+trailLen    = input.int(21, "Trail EMA length (close below = exit)", group = grpE)
+
+grpF = "Market filter"
+useMkt      = input.bool(true, "Signal only when index > its EMA", group = grpF)
+mktSym      = input.symbol("NSE:NIFTY", "Index", group = grpF)
+mktLen      = input.int(50, "Index EMA length", group = grpF)
+
+// ───────── Indicators ─────────
+ema10  = ta.ema(close, 10)
+ema21  = ta.ema(close, 21)
+ema50  = ta.ema(close, 50)
+emaTr  = ta.ema(close, trailLen)
+atrF   = ta.atr(atrFast)
+atrS   = ta.atr(atrSlow)
+vAvg   = ta.sma(volume, 50)
+
+// ───────── 1. Momentum ─────────
+hVolGap  = open >= high[1] * (1 + gapPct / 100) and volume >= gapVolMult * vAvg and close > open
+upCount  = math.sum(close > close[1] ? 1 : 0, upDaysLen)
+orderly  = ta.roc(close, rocLen) >= rocMin and upCount >= upDaysMin and close > ema10 and ema10 > ema21
+momBar   = hVolGap or orderly
+barsMom  = ta.barssince(momBar)
+inMom    = not na(barsMom) and barsMom <= momValid
+
+// Momentum high = highest high since the momentum run started (resets on each fresh momentum bar)
+var float momHigh = na
+if momBar
+    momHigh := na(momHigh) ? high : math.max(momHigh, high)
+else if inMom
+    momHigh := math.max(nz(momHigh, high), high)
+else
+    momHigh := na
+
+// ───────── 2. Base & 3. Contraction ─────────
+pbPct      = na(momHigh) ? na : (momHigh - low) / momHigh * 100
+inBase     = inMom and not momBar and pbPct >= pbMinPct and pbPct <= pbMaxPct and close > ema50
+atrContr   = atrF <= atrRatio * atrS
+emaComp    = math.abs(ema10 - ema21) <= emaCompATR * atrS
+tight      = ta.highest(close, tightLen) - ta.lowest(close, tightLen) <= tightATR * atrS
+insideDay  = high < high[1] and low > low[1]
+contraction = inBase and atrContr and (not needEmaComp or emaComp) and (tight or insideDay)
+
+barsContr  = ta.barssince(contraction)
+hiT        = ta.highest(high, tightLen)
+loT        = ta.lowest(low, tightLen)
+var float contrHigh = na
+var float contrLow  = na
+if contraction
+    contrHigh := hiT
+    contrLow  := loT
+
+// ───────── 4. Breakout ─────────
+rng       = high - low
+expansion = rng >= rangeMult * atrF[1]
+nearHigh  = rng > 0 and (close - low) / rng >= closePos
+breakout  = not na(barsContr) and barsContr >= 1 and barsContr <= bkWindow and inMom and
+     close > contrHigh and expansion and nearHigh and volume >= volMult * vAvg
+
+mktClose = request.security(mktSym, "D", close, lookahead = barmerge.lookahead_off)
+mktEma   = request.security(mktSym, "D", ta.ema(close, mktLen), lookahead = barmerge.lookahead_off)
+mktOK    = not useMkt or (mktClose > mktEma)
+
+// ───────── Visuals (same legend as the screenshot) ─────────
+bgcolor(momBar or (inMom and not inBase and barsMom <= 3) ? color.new(color.blue, 85) : inBase ? color.new(color.orange, 85) : na)
+plotshape(contraction, "Contraction", shape.circle, location.abovebar, color.orange, size = size.tiny)
+barcolor(breakout ? color.lime : na)
+plot(ema10, "EMA10", color.new(color.orange, 30))
+plot(ema21, "EMA21", color.new(color.blue, 30))
+plot(ema50, "EMA50", color.new(color.green, 30))
+
+// ───────── Trade levels (simulated, one setup at a time) ─────────
+stopCand = stopMode == "Contraction low" ? contrLow : low
+stopDist = close - stopCand
+stopOK   = stopDist > 0 and stopDist / close * 100 <= maxStopPct
+signal   = breakout and mktOK and stopOK
+
+var bool  active  = false
+var float entryPx = na
+var float stopPx  = na
+var float tgtPx   = na
+var bool  hitTgt  = false
+var int   entryBar = na
+
+exitNow = false
+exitWhy = ""
+if active and bar_index > entryBar
+    if low <= stopPx
+        exitNow := true
+        exitWhy := hitTgt ? "BE stop" : "Stop"
+    else
+        if partR > 0 and not hitTgt and high >= tgtPx
+            hitTgt := true
+            stopPx := math.max(stopPx, entryPx)
+            if showLevels
+                label.new(bar_index, high, str.tostring(partR, "#.#") + "R", style = label.style_label_down, color = color.new(color.green, 20), textcolor = color.white, size = size.small)
+        if close < emaTr
+            exitNow := true
+            exitWhy := "Trail EMA" + str.tostring(trailLen)
+if exitNow
+    active := false
+    if showLevels
+        label.new(bar_index, high, "Exit\n" + exitWhy, style = label.style_label_down, color = color.new(color.red, 20), textcolor = color.white, size = size.small)
+
+if signal and not active
+    active   := true
+    entryPx  := close
+    stopPx   := stopCand
+    tgtPx    := close + partR * stopDist
+    hitTgt   := false
+    entryBar := bar_index
+    if showLevels
+        label.new(bar_index, low, "BUY\nSL " + str.tostring(stopCand, format.mintick) + " (" + str.tostring(stopDist / close * 100, "#.#") + "%)", style = label.style_label_up, color = color.new(color.lime, 10), textcolor = color.black, size = size.small)
+
+plot(showLevels and active ? stopPx : na, "Stop", color.red, 2, plot.style_linebr)
+plot(showLevels and active and partR > 0 and not hitTgt ? tgtPx : na, "Target", color.green, 1, plot.style_linebr)
+plot(emaTr, "Trail EMA", color.new(color.purple, 40))
+
+// ───────── Alerts ─────────
+alertcondition(signal, "Breakout", "{{ticker}} momentum-base breakout, close {{close}}")
+alertcondition(contraction, "Contraction", "{{ticker}} contraction in base (setup developing)")
+alertcondition(exitNow, "Exit", "{{ticker}} exit signal (stop or trail EMA)")
