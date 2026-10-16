@@ -34,7 +34,11 @@ def load_env(path=".env.dhan"):
 
 def _post(headers, path, body, pace=0.25, tries=4):
     for i in range(tries):
-        r = requests.post(f"{BASE}{path}", json=body, headers=headers, timeout=60)
+        try:
+            r = requests.post(f"{BASE}{path}", json=body, headers=headers, timeout=60)
+        except requests.exceptions.RequestException:  # dropped connection / SSL EOF: back off and retry
+            _t.sleep(2 ** i)
+            continue
         _t.sleep(pace)
         if r.status_code == 200:
             return r.json()
