@@ -1,0 +1,147 @@
+<title>RVOL Dot Trade Review</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: trading-journal list — summary strip, filter row, one row per trade (facts left, chart right) */
+:root{
+  --bg:#f3f5f4; --panel:#ffffff; --fg:#17201d; --muted:#5d6b66; --line:#d8dfdc;
+  --accent:#0f6e63; --up:#14946f; --down:#d6455d; --dot:#e8930c; --stop:#b8344b; --ema:#7a5cc7;
+  --display:"Archivo", "Helvetica Neue", Arial, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1513; --panel:#16201d; --fg:#e4ece9; --muted:#93a39d; --line:#2a3633;
+  --accent:#4cc2b2; --up:#3cc795; --down:#f0697f; --dot:#f5a623; --stop:#f0697f; --ema:#a68cf0; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1513; --panel:#16201d; --fg:#e4ece9; --muted:#93a39d; --line:#2a3633;
+  --accent:#4cc2b2; --up:#3cc795; --down:#f0697f; --dot:#f5a623; --stop:#f0697f; --ema:#a68cf0; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--display);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:18px}
+h1{font-size:1.6rem;font-weight:800;margin:0;letter-spacing:-.01em;text-wrap:balance}
+.sub{color:var(--muted);margin:4px 0 0;max-width:70ch;line-height:1.45}
+.stats{display:flex;flex-wrap:wrap;gap:8px 26px;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.stat b{display:block;font-size:1.25rem}
+.stat span{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip{font:600 .82rem var(--display);border:1px solid var(--line);background:var(--panel);color:var(--fg);
+  border-radius:999px;padding:6px 12px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--panel)}
+.chip:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+select{font:600 .82rem var(--display);padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--fg)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.78rem;color:var(--muted)}
+.legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px}
+.list{display:grid;gap:12px}
+.trade{display:grid;grid-template-columns:250px minmax(0,1fr);gap:14px;background:var(--panel);
+  border:1px solid var(--line);border-radius:10px;padding:14px;border-left:4px solid var(--line)}
+.trade.win{border-left-color:var(--up)} .trade.loss{border-left-color:var(--down)}
+.facts{display:grid;gap:6px;align-content:start;min-width:0}
+.sym{font-size:1.15rem;font-weight:800;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.r{font-family:var(--mono);font-weight:600}
+.r.pos{color:var(--up)} .r.neg{color:var(--down)}
+dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:.82rem}
+dt{color:var(--muted)} dd{margin:0;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.tv{display:inline-block;margin-top:6px;font-weight:600;font-size:.85rem;color:var(--accent);text-decoration:none;
+  border:1px solid var(--accent);border-radius:8px;padding:6px 10px;justify-self:start}
+.tv:hover{background:var(--accent);color:var(--panel)}
+.chart{min-width:0;overflow-x:auto}
+.chart svg{display:block;width:100%;height:auto;min-width:420px}
+.chart text{font:10px var(--mono);fill:var(--muted)}
+.empty{color:var(--muted);padding:20px 0}
+@media (max-width:720px){.trade{grid-template-columns:1fr}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>RVOL Dot Trade Review</h1>
+    <p class="sub">Every trade from the RVOL → HOD backtest after a contraction dot (dot valid 3 days), 13 Jun – 13 Oct 2026, NSE. Open any stock on TradingView's daily chart, or read the setup on the chart beside it.</p>
+  </header>
+  <div class="stats" id="stats"></div>
+  <div class="bar" role="group" aria-label="Filter trades">
+    <button class="chip" id="f-all" aria-pressed="true" data-f="all">All</button>
+    <button class="chip" id="f-win" aria-pressed="false" data-f="win">Winners</button>
+    <button class="chip" id="f-loss" aria-pressed="false" data-f="loss">Losers</button>
+    <button class="chip" id="f-mkt" aria-pressed="false" data-f="mkt">NIFTY &gt; 50 EMA only</button>
+    <label for="sort" style="margin-left:auto;font-size:.82rem;color:var(--muted)">Sort</label>
+    <select id="sort"><option value="date">Entry date</option><option value="r">R, best first</option><option value="rw">R, worst first</option></select>
+  </div>
+  <div class="legend">
+    <span><i style="background:var(--dot);height:8px;width:8px;border-radius:50%"></i>Contraction dot</span>
+    <span><i style="background:var(--accent)"></i>Entry (HOD trigger)</span>
+    <span><i style="background:var(--stop)"></i>Initial stop</span>
+    <span><i style="background:var(--ema)"></i>EMA 21 (exit)</span>
+    <span><i style="background:var(--muted)"></i>Exit day</span>
+  </div>
+  <div class="list" id="list"></div>
+</div>
+
+<script>
+const T = __DATA__;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let filt = "all", sortBy = "date";
+const fmt = (x, d=2) => Number(x).toFixed(d);
+function tvLink(s){ return "https://www.tradingview.com/chart/?symbol=" + encodeURIComponent("NSE:" + s) + "&interval=D"; }
+
+function chart(t){
+  const W = 760, H = 230, padL = 6, padR = 52, padT = 16, padB = 22, n = t.d.length;
+  const lo = Math.min(...t.l, t.stop) * 0.995, hi = Math.max(...t.h) * 1.01;
+  const y = v => padT + (hi - v) / (hi - lo) * (H - padT - padB);
+  const step = (W - padL - padR) / n, bw = Math.max(2, step * 0.6);
+  const x = i => padL + step * i + step / 2;
+  const up = css("--up"), dn = css("--down"), dot = css("--dot"), acc = css("--accent"), st = css("--stop"), ema = css("--ema"), mu = css("--muted"), line = css("--line");
+  let g = "";
+  for (let k = 0; k <= 4; k++){ const v = lo + (hi - lo) * k / 4;
+    g += `<line x1="${padL}" x2="${W-padR}" y1="${y(v)}" y2="${y(v)}" stroke="${line}" stroke-width="1"/><text x="${W-padR+4}" y="${y(v)+3}">${fmt(v, v<100?2:0)}</text>`; }
+  const iDot = t.d.indexOf(t.dot), iE = t.d.indexOf(t.entry_date), iX = t.d.indexOf(t.exit_date);
+  if (iE >= 0) g += `<rect x="${x(iE)-step/2}" y="${padT}" width="${step*(Math.max(iX,iE)-iE+1)}" height="${H-padT-padB}" fill="${acc}" opacity="0.07"/>`;
+  for (let i = 0; i < n; i++){ const c = t.c[i] >= t.o[i] ? up : dn;
+    g += `<line x1="${x(i)}" x2="${x(i)}" y1="${y(t.h[i])}" y2="${y(t.l[i])}" stroke="${c}" stroke-width="1"/>`;
+    const top = y(Math.max(t.o[i], t.c[i])), bh = Math.max(1, Math.abs(y(t.o[i]) - y(t.c[i])));
+    g += `<rect x="${x(i)-bw/2}" y="${top}" width="${bw}" height="${bh}" fill="${c}"/>`; }
+  g += `<polyline fill="none" stroke="${ema}" stroke-width="1.5" points="${t.e.map((v,i)=>x(i)+","+y(v)).join(" ")}"/>`;
+  if (iDot >= 0) g += `<circle cx="${x(iDot)}" cy="${y(t.h[iDot])-8}" r="4" fill="${dot}"/>`;
+  if (iE >= 0){
+    const xe = iX >= 0 ? x(iX) : x(n-1);
+    g += `<line x1="${x(iE)-step/2}" x2="${xe+step/2}" y1="${y(t.stop)}" y2="${y(t.stop)}" stroke="${st}" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+    g += `<line x1="${x(iE)-step/2}" x2="${xe+step/2}" y1="${y(t.entry)}" y2="${y(t.entry)}" stroke="${acc}" stroke-width="1.5"/>`;
+    g += `<path d="M${x(iE)},${y(t.l[iE])+6} l-5,9 h10 z" fill="${acc}"/>`; }
+  if (iX >= 0 && iX !== iE) g += `<path d="M${x(iX)},${y(t.h[iX])-6} l-5,-9 h10 z" fill="${mu}"/>`;
+  const lbl = i => `<text x="${x(i)}" y="${H-6}" text-anchor="middle">${t.d[i].slice(5)}</text>`;
+  [0, iDot, iE, n-1].filter((v,i,a)=>v>=0 && a.indexOf(v)===i).forEach(i => g += lbl(i));
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${t.sym} daily candles around the trade">${g}</svg>`;
+}
+
+function render(){
+  let rows = T.filter(t => filt==="all" || (filt==="win"&&t.R>0) || (filt==="loss"&&t.R<=0) || (filt==="mkt"&&t.mkt));
+  rows.sort(sortBy==="r" ? (a,b)=>b.R-a.R : sortBy==="rw" ? (a,b)=>a.R-b.R : (a,b)=>a.entry_date.localeCompare(b.entry_date));
+  const w = rows.filter(t=>t.R>0).length, sumR = rows.reduce((s,t)=>s+t.R,0);
+  document.getElementById("stats").innerHTML = rows.length ? [
+    [rows.length, "trades"], [Math.round(w/rows.length*100)+"%", "win rate"],
+    [(sumR>=0?"+":"")+fmt(sumR,1)+"R", "total"], [(sumR>=0?"+":"")+fmt(sumR*0.5,1)+"%", "on capital @ 0.5% risk"]
+  ].map(([v,k])=>`<div class="stat"><b>${v}</b><span>${k}</span></div>`).join("") : "";
+  document.getElementById("list").innerHTML = rows.length ? rows.map(t => `
+    <article class="trade ${t.R>0?"win":"loss"}">
+      <div class="facts">
+        <div class="sym">${t.sym}<span class="r ${t.R>0?"pos":"neg"}">${t.R>0?"+":""}${fmt(t.R)}R</span></div>
+        <dl>
+          <dt>Dot</dt><dd>${t.dot}</dd>
+          <dt>Entry</dt><dd>${t.entry_date} ${t.t}</dd>
+          <dt>Price / stop</dt><dd>${fmt(t.entry)} / ${fmt(t.stop)} (${fmt(t.stop_pct,1)}%)</dd>
+          <dt>RVOL</dt><dd>${fmt(t.rvol,1)}%</dd>
+          <dt>Exit</dt><dd>${t.exit_date} · ${t.why}</dd>
+          <dt>Return</dt><dd>${t.ret>0?"+":""}${fmt(t.ret)}%</dd>
+          <dt>NIFTY filter</dt><dd>${t.mkt?"above 50 EMA":"below 50 EMA"}</dd>
+        </dl>
+        <a class="tv" href="${tvLink(t.sym)}" target="_blank" rel="noopener">Open ${t.sym} on TradingView ↗</a>
+      </div>
+      <div class="chart">${chart(t)}</div>
+    </article>`).join("") : `<p class="empty">No trades match this filter.</p>`;
+}
+document.querySelectorAll(".chip").forEach(b => b.addEventListener("click", () => {
+  filt = b.dataset.f; document.querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", x===b)); render(); }));
+document.getElementById("sort").addEventListener("change", e => { sortBy = e.target.value; render(); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+new MutationObserver(render).observe(document.documentElement, {attributes:true, attributeFilter:["data-theme"]});
+render();
+</script>
