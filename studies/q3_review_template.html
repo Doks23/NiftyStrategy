@@ -1,0 +1,397 @@
+<title>Q3 2026 Winners Study</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: terminal-style review desk. Sticky control bar, findings strip, then one trade card per row:
+   card header (symbol, date, entry status) / body = metrics rail + chart with volume pane and replay bar */
+:root{
+  --bg:#eef1f4; --surface:#ffffff; --raise:#f6f8fa; --fg:#121a22; --muted:#5f6b78; --faint:#8a95a1; --line:#dde3e9; --grid:#edf1f4;
+  --accent:#1d5fd1; --up:#0e9f6e; --down:#e0434f; --e10:#e8930c; --e21:#2f6fd6; --e50:#0e9f6e; --pp:#1d5fd1; --rv:#d9480f; --dot:#e8930c;
+  --mask:#e9edf1; --day:#1d5fd1; --nr:#d633e0; --rib-up:#0e9f6e; --rib-dn:#e0434f;
+  --sans:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0b0f14; --surface:#121820; --raise:#18202a; --fg:#e6ebf0; --muted:#9aa6b2; --faint:#6c7885; --line:#243040; --grid:#1a222c;
+  --accent:#5b8ff0; --up:#26c08a; --down:#f06470; --e10:#f5a623; --e21:#6aa0ff; --e50:#26c08a; --pp:#6aa0ff; --rv:#ff8a4c; --dot:#f5a623;
+  --mask:#161d26; --day:#5b8ff0; --nr:#e879f9; --rib-up:#26c08a; --rib-dn:#f06470; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0b0f14; --surface:#121820; --raise:#18202a; --fg:#e6ebf0; --muted:#9aa6b2; --faint:#6c7885; --line:#243040; --grid:#1a222c;
+  --accent:#5b8ff0; --up:#26c08a; --down:#f06470; --e10:#f5a623; --e21:#6aa0ff; --e50:#26c08a; --pp:#6aa0ff; --rv:#ff8a4c; --dot:#f5a623;
+  --mask:#161d26; --day:#5b8ff0; --nr:#e879f9; --rib-up:#26c08a; --rib-dn:#f06470; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:14px/1.45 var(--sans);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:1240px;margin:0 auto;display:grid;gap:16px}
+header.top{padding-top:22px;display:grid;gap:6px}
+h1{font-size:1.55rem;font-weight:700;margin:0;letter-spacing:-.01em;text-wrap:balance}
+.sub{color:var(--muted);margin:0;max-width:78ch}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* KPI strip */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.kpi b{display:block;font:600 1.35rem var(--mono)}
+.kpi span{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+
+/* findings */
+details.find{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 16px}
+details.find summary{cursor:pointer;font-weight:600}
+details.find ul{margin:8px 0 2px;padding-left:18px;color:var(--fg);line-height:1.55;max-width:100ch}
+
+/* sticky bar */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding-block:10px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{font:500 .82rem var(--sans);border:0;background:transparent;color:var(--muted);padding:6px 11px;cursor:pointer;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--surface)}
+.toggles{display:flex;gap:12px;font-size:.82rem;color:var(--muted)}
+.toggles label{display:flex;align-items:center;gap:5px;cursor:pointer}
+.sw{width:14px;height:3px;border-radius:2px;display:inline-block}
+.bar select{font:500 .82rem var(--sans);padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);margin-left:auto}
+button:focus-visible,select:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* card */
+.list{display:grid;gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.card-h{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.sym{font-size:1.15rem;font-weight:700;letter-spacing:.01em}
+.date{font:500 .8rem var(--mono);color:var(--muted);background:var(--raise);border:1px solid var(--line);border-radius:6px;padding:2px 7px}
+.pills{display:flex;flex-wrap:wrap;gap:8px;margin-left:auto}
+.pill{display:inline-flex;align-items:center;gap:7px;font-size:.8rem;border-radius:999px;padding:4px 11px 4px 9px;border:1px solid var(--line);color:var(--muted);background:var(--raise);max-width:100%}
+.pill .k{font-weight:700;letter-spacing:.02em}
+.pill .v{font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pill.on.pp{border-color:var(--pp);color:var(--pp);background:color-mix(in srgb,var(--pp) 9%,var(--surface))}
+.pill.on.rv{border-color:var(--rv);color:var(--rv);background:color-mix(in srgb,var(--rv) 9%,var(--surface))}
+.pill .ic{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.pill:not(.on) .ic{background:transparent;border:1.5px solid currentColor}
+.card-b{display:grid;grid-template-columns:290px minmax(0,1fr)}
+.rail{border-right:1px solid var(--line);padding:14px 16px;display:grid;gap:14px;align-content:start;min-width:0}
+.why{font-size:.8rem;color:var(--muted);display:grid;gap:4px}
+.why b{color:var(--fg);font-weight:600}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.m{background:var(--surface);padding:7px 10px;min-width:0}
+.m span{display:block;font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.m b{font:600 .92rem var(--mono);font-variant-numeric:tabular-nums}
+.pos{color:var(--up)} .neg{color:var(--down)}
+.traits{display:flex;flex-wrap:wrap;gap:5px}
+.tr{font-size:.72rem;border-radius:5px;padding:2px 7px;border:1px solid var(--line);color:var(--faint)}
+.tr.on{border-color:color-mix(in srgb,var(--up) 45%,var(--line));color:var(--fg);background:color-mix(in srgb,var(--up) 10%,var(--surface))}
+.tv{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:.82rem;color:var(--accent);text-decoration:none}
+.tv:hover{text-decoration:underline}
+.stage{min-width:0;padding:10px 12px 12px;display:grid;gap:8px}
+.ohlc{display:flex;flex-wrap:wrap;gap:4px 14px;font:500 .76rem var(--mono);color:var(--muted);min-height:1.3em}
+.ohlc b{color:var(--fg);font-weight:600}
+.svgbox{overflow-x:auto}
+.svgbox svg{display:block;width:100%;height:auto;min-width:520px;touch-action:pan-y;cursor:ew-resize;user-select:none}
+svg text{font:10px var(--mono);fill:var(--faint)}
+.replay{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ctrl{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.ctrl button{font:500 .8rem var(--sans);border:0;border-right:1px solid var(--line);background:transparent;color:var(--fg);padding:6px 10px;cursor:pointer;min-width:34px}
+.ctrl button:last-child{border-right:0}
+.ctrl button:hover{background:var(--raise)}
+.replay input[type=range]{flex:1 1 200px;min-width:0;accent-color:var(--accent)}
+.when{font:500 .78rem var(--mono);color:var(--fg);display:flex;gap:6px;align-items:center;min-width:16ch}
+.when i{font-style:normal;font:600 .66rem var(--sans);text-transform:uppercase;letter-spacing:.06em;padding:2px 6px;border-radius:4px;background:var(--raise);color:var(--muted);border:1px solid var(--line)}
+.when i.td{background:color-mix(in srgb,var(--day) 14%,var(--surface));color:var(--day);border-color:color-mix(in srgb,var(--day) 40%,var(--line))}
+.empty{color:var(--muted);padding:20px 0}
+.rev{font:600 .78rem var(--sans);display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:8px;padding:5px 10px;cursor:pointer}
+.rev:hover{border-color:var(--up);color:var(--up)}
+.rev[aria-pressed="true"]{background:var(--up);border-color:var(--up);color:#fff}
+.card.done{opacity:.72}
+.card.done .sym::after{content:" ✓";color:var(--up)}
+@media (max-width:860px){.card-b{grid-template-columns:1fr}.rail{border-right:0;border-bottom:1px solid var(--line)}.pills{margin-left:0}}
+@media (prefers-reduced-motion:no-preference){.card{transition:border-color .15s}.card:hover{border-color:color-mix(in srgb,var(--accent) 35%,var(--line))}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Q3 2026 Winners Study</h1>
+    <p class="sub">The 50 biggest NSE runs of July–September 2026: liquid stocks (₹10 Cr+ daily turnover), ranked by low-to-high move inside the quarter. Each chart opens on the day before the launch (the first close above the prior 15-day high after the low), with the future masked. Step forward to watch the run and see whether PP VOL or RVOL → HOD would have caught the launch day.</p>
+  </header>
+
+  <div class="kpis" id="kpis"></div>
+
+  <details class="find" open>
+    <summary>What the launch setups had in common (day before the launch)</summary>
+    <ul>
+      <li>The runs were big: median +90% low-to-high in the quarter, median +69% from the launch close to the peak.</li>
+      <li>Most were already in an uptrend: above the 50 EMA in 77%, EMA 10 &gt; 21 &gt; 50 in 67%; median +21% over the prior 3 months, 9.5% below the 60-day high.</li>
+      <li>Less of a quiet base than Manan's picks: close within 3% of the 21 EMA in only 40% (his trades: 70%); volume dry-up in 48% (his: 73%); ATR contracting in 42%. Many winners launched straight out of an existing move.</li>
+      <li>Launch day: a normal open (gap within ±1% in 65%), then volume expansion, median 146% of the 21-day average and +3.9% close.</li>
+      <li>Your entries: PP VOL caught 11 of 48 launch days, RVOL → HOD 7, at least one 17. PP VOL was mostly blocked by its own extension gates: the stock closed more than 6% above its 10-day SMA (10 days) or had already run more than 5% by the trigger (7 days). RVOL stayed under 9% by 09:26 on 28 days.</li>
+    </ul>
+  </details>
+
+  <div class="bar" role="toolbar" aria-label="Filter and display">
+    <div class="seg" role="group" aria-label="Filter trades">
+      <button id="f-all" aria-pressed="true" data-f="all">All</button>
+      <button id="f-pp" aria-pressed="false" data-f="pp">PP VOL entry</button>
+      <button id="f-rv" aria-pressed="false" data-f="rv">RVOL entry</button>
+      <button id="f-none" aria-pressed="false" data-f="none">No entry</button>
+      <button id="f-todo" aria-pressed="false" data-f="todo">Not reviewed</button>
+      <button id="f-done" aria-pressed="false" data-f="done">Reviewed</button>
+    </div>
+    <div class="toggles" role="group" aria-label="Moving averages">
+      <label for="rib"><input type="checkbox" id="rib" checked><span class="sw" style="height:8px;background:linear-gradient(90deg,var(--rib-up),var(--rib-dn));opacity:.5"></span>10/21 ribbon</label>
+      <label for="em10"><input type="checkbox" id="em10"><span class="sw" style="background:var(--e10)"></span>EMA 10</label>
+      <label for="em21"><input type="checkbox" id="em21"><span class="sw" style="background:var(--e21)"></span>EMA 21</label>
+      <label for="em50"><input type="checkbox" id="em50" checked><span class="sw" style="background:var(--e50)"></span>EMA 50</label>
+      <label for="vol"><input type="checkbox" id="vol" checked>Volume</label>
+      <span style="display:flex;align-items:center;gap:5px"><span class="sw" style="width:8px;height:12px;background:var(--nr)"></span>NR7 + inside bar</span>
+    </div>
+    <select id="sort" aria-label="Sort trades"><option value="date">Sort: trade date</option><option value="sym">Sort: symbol</option><option value="run">Sort: biggest run</option></select>
+  </div>
+
+  <div class="list" id="list"></div>
+</div>
+
+<script>
+const T = __DATA__;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt = (x, d=2) => x == null || Number.isNaN(+x) ? "–" : Number(x).toFixed(d);
+const sgn = (x, d=1) => x == null ? "–" : (x > 0 ? "+" : "") + fmt(x, d) + "%";
+const kfmt = v => v >= 1e7 ? (v/1e7).toFixed(1)+"Cr" : v >= 1e5 ? (v/1e5).toFixed(1)+"L" : v >= 1e3 ? (v/1e3).toFixed(0)+"K" : String(Math.round(v));
+const tvLink = s => "https://www.tradingview.com/chart/?symbol=" + encodeURIComponent("NSE:" + s) + "&interval=D";
+const yes = b => b === true || b === "True";
+const show = {e10: false, e21: false, e50: true, vol: true, rib: true};
+let filt = "all", sortBy = "date";
+// ── Reviewed marks: saved per person in the page database; this browser only if that is unavailable ──
+const rid = t => ("rev_" + t.symbol + "_" + t.date).replace(/[^A-Za-z0-9_-]/g, "_");
+let REV = new Set(), revCol = null;
+const LS = "q3-winners-reviewed";
+function lsLoad(){ try { return new Set(JSON.parse(localStorage.getItem(LS) || "[]")); } catch (_) { return new Set(); } }
+function lsSave(){ try { localStorage.setItem(LS, JSON.stringify([...REV])); } catch (_) {} }
+function paintReviewed(){
+  document.querySelectorAll(".card[data-rid]").forEach(c => { const on = REV.has(c.dataset.rid); c.classList.toggle("done", on);
+    const b = c.querySelector(".rev"); b.setAttribute("aria-pressed", on); b.textContent = on ? "✓ Reviewed" : "Mark reviewed"; });
+  const k = document.getElementById("revk"); if (k) k.textContent = T.filter(t => REV.has(rid(t))).length;
+}
+async function toggleReviewed(id){
+  const on = !REV.has(id);
+  on ? REV.add(id) : REV.delete(id); paintReviewed();
+  if (revCol){ try { on ? await revCol.doc(id).set({reviewed: true, at: Date.now()}) : await revCol.doc(id).delete(); }
+    catch (_) { on ? REV.delete(id) : REV.add(id); paintReviewed(); } }
+  else lsSave();
+  if (filt === "todo" || filt === "done") render();
+}
+REV = lsLoad();
+(async () => {
+  try {
+    const db = await claude.use("db"), user = await claude.use("user");
+    const me = user ? await user.id() : null;
+    if (!db || !me) return;
+    revCol = db.collection("data/users/" + me);
+    revCol.onSnapshot(snap => {
+      REV = new Set(snap.docs.filter(d => d.exists && d.id.startsWith("rev_")).map(d => d.id));
+      if (filt === "todo" || filt === "done") render(); else paintReviewed();
+    }, () => {});
+  } catch (_) {}
+})();
+const CUR = new Map(), HOV = new Map();
+const key = t => t.sym + "|" + t.date;
+const tIdx = t => t.d.indexOf(t.date);
+const startIdx = t => Math.max(0, tIdx(t) - 1);
+const curOf = t => CUR.has(key(t)) ? CUR.get(key(t)) : startIdx(t);
+
+const G = {W: 820, padL: 8, padR: 64, padT: 14, priceH: 210, gap: 8, volH: 54, axisH: 20};
+function geom(t){
+  const n = t.d.length, H = G.padT + G.priceH + (show.vol ? G.gap + G.volH : 0) + G.axisH;
+  const lo = Math.min(...t.l) * 0.985, hi = Math.max(...t.h) * 1.012;
+  const y = v => G.padT + (hi - v) / (hi - lo) * G.priceH;
+  const step = (G.W - G.padL - G.padR) / n;
+  const x = i => G.padL + step * i + step / 2;
+  return {n, H, lo, hi, y, step, x};
+}
+function tag(x, y, text, fill, W){  // TradingView-style price tag on the right axis
+  return `<rect x="${W-G.padR+2}" y="${y-8}" width="${G.padR-4}" height="16" rx="3" fill="${fill}"/>` +
+         `<text x="${W-G.padR+6}" y="${y+3.5}" style="fill:#fff;font-weight:600">${text}</text>`;
+}
+function chart(t, cur){
+  const {n, H, lo, hi, y, step, x} = geom(t), W = G.W, C = css;
+  const bw = Math.max(2, Math.min(9, step * 0.62)), plotR = W - G.padR;
+  const volTop = G.padT + G.priceH + G.gap, iT = tIdx(t);
+  let g = `<rect x="0" y="0" width="${W}" height="${H}" fill="${C("--surface")}"/>`;
+  // grid + price labels
+  const ticks = 5;
+  for (let k = 0; k <= ticks; k++){ const v = lo + (hi - lo) * k / ticks, yy = y(v);
+    g += `<line x1="${G.padL}" x2="${plotR}" y1="${yy}" y2="${yy}" stroke="${C("--grid")}"/><text x="${plotR+6}" y="${yy+3}">${fmt(v, v<100?2:v<1000?1:0)}</text>`; }
+  // date ticks every ~8 bars
+  const every = Math.max(1, Math.round(n / 7));
+  for (let i = 0; i < n; i += every){
+    g += `<line x1="${x(i)}" x2="${x(i)}" y1="${G.padT}" y2="${H-G.axisH}" stroke="${C("--grid")}"/>`;
+    g += `<text x="${x(i)}" y="${H-6}" text-anchor="middle">${t.d[i].slice(8)} ${["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+t.d[i].slice(5,7)]}</text>`; }
+  // trade-day column
+  if (iT >= 0 && iT <= cur) g += `<rect x="${x(iT)-step/2}" y="${G.padT}" width="${step}" height="${H-G.axisH-G.padT}" fill="${C("--day")}" opacity="0.10"/>`;
+  // volume pane
+  if (show.vol){
+    const vmax = Math.max(...t.v.slice(0, cur + 1), ...(t.v50 || []).slice(0, cur + 1).filter(Boolean)) || 1;
+    const vy = v => volTop + G.volH - v / vmax * G.volH;
+    g += `<line x1="${G.padL}" x2="${plotR}" y1="${volTop+G.volH}" y2="${volTop+G.volH}" stroke="${C("--line")}"/>`;
+    for (let i = 0; i <= cur; i++){ const col = t.c[i] >= t.o[i] ? C("--up") : C("--down");
+      g += `<rect x="${x(i)-bw/2}" y="${vy(t.v[i])}" width="${bw}" height="${volTop+G.volH-vy(t.v[i])}" fill="${col}" opacity="0.45"/>`; }
+    if (t.v50) g += `<polyline fill="none" stroke="${C("--muted")}" stroke-width="1" stroke-dasharray="3 2" points="${t.v50.slice(0,cur+1).map((v,i)=>v?x(i)+","+vy(v):"").filter(Boolean).join(" ")}"/>`;
+    g += `<text x="${plotR+6}" y="${volTop+10}">VOL</text>`;
+  }
+  // 10/21 ribbon: green while EMA 10 is above EMA 21, red otherwise
+  if (show.rib) for (let i = 1; i <= cur; i++){
+    const up = t.e10[i] >= t.e21[i];
+    g += `<path d="M${x(i-1)},${y(t.e10[i-1])} L${x(i)},${y(t.e10[i])} L${x(i)},${y(t.e21[i])} L${x(i-1)},${y(t.e21[i-1])} Z" fill="${C(up ? "--rib-up" : "--rib-dn")}" opacity="0.16"/>`; }
+  // candles (NR7 + inside bar painted pink)
+  for (let i = 0; i <= cur; i++){ const col = isNrIb(t, i) ? C("--nr") : t.c[i] >= t.o[i] ? C("--up") : C("--down");
+    g += `<line x1="${x(i)}" x2="${x(i)}" y1="${y(t.h[i])}" y2="${y(t.l[i])}" stroke="${col}" stroke-width="1.1"/>`;
+    const top = y(Math.max(t.o[i], t.c[i])), bh = Math.max(1, Math.abs(y(t.o[i]) - y(t.c[i])));
+    g += `<rect x="${x(i)-bw/2}" y="${top}" width="${bw}" height="${bh}" fill="${col}" rx="0.6"/>`; }
+  // EMAs
+  for (const [k, col] of [["e50","--e50"],["e21","--e21"],["e10","--e10"]])
+    if (show[k]) g += `<polyline fill="none" stroke="${C(col)}" stroke-width="1.5" stroke-linejoin="round" points="${t[k].slice(0,cur+1).map((v,i)=>x(i)+","+y(v)).join(" ")}"/>`;
+  // quarter low and peak
+  [[t.low_date, "L", false], [t.peak_date, "P", true]].forEach(([dd, lab, top]) => { const i = t.d.indexOf(dd);
+    if (i >= 0 && i <= cur) g += `<text x="${x(i)}" y="${top ? y(t.h[i]) - 6 : y(t.l[i]) + 13}" text-anchor="middle" style="font-weight:700;fill:${C(top?"--up":"--down")}">${lab}</text>`; });
+  // contraction dots
+  (t.dots || []).forEach(dd => { const i = t.d.indexOf(dd); if (i >= 0 && i <= cur) g += `<circle cx="${x(i)}" cy="${y(t.h[i])-7}" r="3" fill="${C("--dot")}"/>`; });
+  // entries on the trade day
+  if (iT >= 0 && iT <= cur){
+    if (t.pp_entry != null){ const yy = y(t.pp_entry);
+      g += `<line x1="${x(iT)-step*3}" x2="${plotR}" y1="${yy}" y2="${yy}" stroke="${C("--pp")}" stroke-width="1.2" stroke-dasharray="5 3"/>`;
+      g += `<circle cx="${x(iT)}" cy="${yy}" r="4.5" fill="${C("--surface")}" stroke="${C("--pp")}" stroke-width="2"/>` + tag(0, yy, "PP " + fmt(t.pp_entry, t.pp_entry<1000?2:1), C("--pp"), W); }
+    if (t.rvol_entry != null){ const yy = y(t.rvol_entry);
+      g += `<line x1="${x(iT)-step*3}" x2="${plotR}" y1="${yy}" y2="${yy}" stroke="${C("--rv")}" stroke-width="1.2" stroke-dasharray="2 3"/>`;
+      g += `<rect x="${x(iT)-4}" y="${yy-4}" width="8" height="8" transform="rotate(45 ${x(iT)} ${yy})" fill="${C("--surface")}" stroke="${C("--rv")}" stroke-width="2"/>` + tag(0, yy + (t.pp_entry!=null && Math.abs(y(t.pp_entry)-yy)<17 ? 17 : 0), "RV " + fmt(t.rvol_entry, t.rvol_entry<1000?2:1), C("--rv"), W); }
+  }
+  // last close tag
+  { const yy = y(t.c[cur]); const col = t.c[cur] >= t.o[cur] ? C("--up") : C("--down");
+    g += `<line x1="${x(cur)}" x2="${plotR}" y1="${yy}" y2="${yy}" stroke="${col}" stroke-width="0.8" stroke-dasharray="1 2"/>` + tag(0, yy, fmt(t.c[cur], t.c[cur]<1000?2:1), col, W); }
+  // future mask
+  if (cur < n - 1){ const mx = x(cur) + step / 2;
+    g += `<rect x="${mx}" y="${G.padT}" width="${plotR-mx}" height="${H-G.axisH-G.padT}" fill="${C("--mask")}"/>`;
+    g += `<line x1="${mx}" x2="${mx}" y1="${G.padT}" y2="${H-G.axisH}" stroke="${C("--accent")}" stroke-width="1.2"/>`;
+    if (plotR - mx > 90) g += `<text x="${(mx+plotR)/2}" y="${G.padT+16}" text-anchor="middle" style="font-family:var(--sans);font-size:11px">${n-1-cur} days hidden →</text>`; }
+  // hover crosshair
+  const hv = HOV.get(key(t));
+  if (hv != null && hv <= cur) g += `<line x1="${x(hv)}" x2="${x(hv)}" y1="${G.padT}" y2="${H-G.axisH}" stroke="${C("--muted")}" stroke-dasharray="2 2"/>`;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${t.sym} daily candles around ${t.date}">${g}</svg>`;
+}
+function isNrIb(t, i){
+  if (i < 6) return false;
+  const r = t.h[i] - t.l[i];
+  for (let k = i - 6; k < i; k++) if (t.h[k] - t.l[k] < r) return false;
+  return t.h[i] < t.h[i-1] && t.l[i] > t.l[i-1];
+}
+function ohlc(t, i){
+  if (i == null) return "";
+  const ch = i > 0 ? (t.c[i] / t.c[i-1] - 1) * 100 : 0;
+  return `<span>${t.d[i]}</span><span>O <b>${fmt(t.o[i])}</b></span><span>H <b>${fmt(t.h[i])}</b></span><span>L <b>${fmt(t.l[i])}</b></span>` +
+    `<span>C <b>${fmt(t.c[i])}</b></span><span class="${ch>=0?"pos":"neg"}">${sgn(ch,2)}</span><span>Vol <b>${kfmt(t.v[i])}</b></span>` +
+    (isNrIb(t, i) ? `<span style="color:var(--nr);font-weight:600">NR7 + IB</span>` : "");
+}
+function pill(kind, label, ok, text){
+  return `<span class="pill ${ok ? "on " + kind : ""}" title="${text}"><span class="ic"></span><span class="k">${label}</span><span class="v">${text}</span></span>`;
+}
+function pills(t){
+  const pp = t.pp_entry != null ? `${t.pp_time} @ ${fmt(t.pp_entry)} · SL ${fmt(t.pp_stop_pct,1)}%` : (t.pp_block || t.note || "no data");
+  const rv = t.rvol_entry != null ? `${t.rvol_time} @ ${fmt(t.rvol_entry)} · ${fmt(t.rvol_at,0)}% RVOL` : (t.rvol_block ? t.rvol_block.replace("_"," ").toLowerCase() : (t.note || "no data"));
+  return pill("pp", "PP VOL", t.pp_entry != null, pp) + pill("rv", "RVOL", t.rvol_entry != null, rv);
+}
+function metrics(t){
+  if (t.stack == null) return `<p class="why">${t.note || "Not enough history for setup metrics."}</p>`;
+  const cell = (k, v, cls="") => `<div class="m"><span>${k}</span><b class="${cls}">${v}</b></div>`;
+  const pc = v => v == null ? "" : v >= 0 ? "pos" : "neg";
+  return `<div class="metrics">
+    ${cell("vs EMA 10", sgn(t.d10), pc(t.d10))}${cell("vs EMA 21", sgn(t.d21), pc(t.d21))}
+    ${cell("3-month", sgn(t.roc63,0), pc(t.roc63))}${cell("1-month", sgn(t.roc20,0), pc(t.roc20))}
+    ${cell("Off 60d high", "−" + fmt(t.off_hi60,1) + "%")}${cell("ATR 5 ÷ 20", fmt(t.atr_ratio), t.atr_ratio<1?"pos":"")}
+    ${cell("Vol 5d ÷ 50d", fmt(t.vol_dry) + "×", t.vol_dry<1?"pos":"")}${cell("Day volume", fmt(t.day_rvol,0) + "%")}
+    ${cell("Gap", sgn(t.gap), pc(t.gap))}${cell("Day close", sgn(t.day_chg), pc(t.day_chg))}
+    ${t.run_pct != null ? cell("Quarter run", "+" + fmt(t.run_pct,0) + "%", "pos") + cell("Launch → peak", "+" + fmt(t.launch_to_peak,0) + "% · " + t.days_to_peak + "d", "pos") : ""}
+  </div>`;
+}
+function traits(t){
+  if (t.stack == null) return "";
+  const list = [["EMA 10>21>50", yes(t.stack)], ["Above EMA 50", yes(t.above50)], ["Near EMA 21", Math.abs(t.d21) <= 3],
+    ["3-mo leader", t.roc63 > 15], ["Volume dry-up", t.vol_dry < 1], ["ATR contracting", t.atr_ratio < 1],
+    ["Inside day", yes(t.inside)], ["NR7", yes(t.nr7)], ["Contraction dot", yes(t.dot3)]];
+  return `<div class="traits">${list.map(([k,v])=>`<span class="tr ${v?"on":""}">${k}</span>`).join("")}</div>`;
+}
+function whenTxt(t, v){
+  const iT = tIdx(t), lab = v === iT ? `<i class="td">trade day</i>` : v === iT - 1 ? `<i>day before</i>` : v > iT ? `<i>+${v-iT}d</i>` : `<i>−${iT-v}d</i>`;
+  return `${t.d[v]} ${lab}`;
+}
+function card(t){
+  const v = curOf(t);
+  const done = REV.has(rid(t));
+  return `<article class="card ${done?"done":""}" data-rid="${rid(t)}">
+    <div class="card-h"><span class="sym">${t.symbol}</span><span class="date">${t.date}</span>
+      <button type="button" class="rev" data-rid="${rid(t)}" aria-pressed="${done}">${done ? "✓ Reviewed" : "Mark reviewed"}</button>
+      <div class="pills">${pills(t)}</div></div>
+    <div class="card-b">
+      <div class="rail">${metrics(t)}${traits(t)}<a class="tv" href="${tvLink(t.sym)}" target="_blank" rel="noopener">Open ${t.symbol} on TradingView ↗</a></div>
+      <div class="stage" data-k="${key(t)}">
+        <div class="ohlc">${ohlc(t, v)}</div>
+        <div class="svgbox">${chart(t, v)}</div>
+        <div class="replay">
+          <div class="ctrl"><button type="button" data-act="start" title="Back to the day before the trade">Setup</button><button type="button" data-act="-1" aria-label="One day back">◀</button><button type="button" data-act="1" aria-label="One day forward">▶</button><button type="button" data-act="all">Show all</button></div>
+          <input type="range" min="0" max="${t.d.length-1}" value="${v}" aria-label="Reveal candles up to day" id="r-${t.sym}-${t.date}">
+          <span class="when">${whenTxt(t, v)}</span>
+        </div>
+      </div>
+    </div>
+  </article>`;
+}
+function render(){
+  let rows = T.filter(t => filt==="all" || (filt==="pp"&&t.pp_entry!=null) || (filt==="rv"&&t.rvol_entry!=null) || (filt==="none"&&t.pp_entry==null&&t.rvol_entry==null)
+    || (filt==="todo"&&!REV.has(rid(t))) || (filt==="done"&&REV.has(rid(t))));
+  rows.sort(sortBy==="run" ? (a,b)=>(b.run_pct||0)-(a.run_pct||0) : sortBy==="sym" ? (a,b)=>a.symbol.localeCompare(b.symbol)||a.date.localeCompare(b.date) : (a,b)=>a.date.localeCompare(b.date)||a.symbol.localeCompare(b.symbol));
+  const pp = rows.filter(t=>t.pp_entry!=null).length, rv = rows.filter(t=>t.rvol_entry!=null).length, any = rows.filter(t=>t.pp_entry!=null||t.rvol_entry!=null).length;
+  document.getElementById("kpis").innerHTML = [[rows.length,"Trades shown"],[pp,"PP VOL entries"],[rv,"RVOL entries"],[any,"At least one entry"],[`<span id="revk">${T.filter(t=>REV.has(rid(t))).length}</span> / ${T.length}`,"Reviewed"]]
+    .map(([v,k])=>`<div class="kpi"><b>${v}</b><span>${k}</span></div>`).join("");
+  document.getElementById("list").innerHTML = rows.length ? rows.map(card).join("") : `<p class="empty">No trades match this filter.</p>`;
+}
+const byKey = k => T.find(t => key(t) === k);
+function paint(stage){
+  const t = byKey(stage.dataset.k), v = curOf(t), hv = HOV.get(key(t));
+  stage.querySelector(".svgbox").innerHTML = chart(t, v);
+  stage.querySelector(".ohlc").innerHTML = ohlc(t, hv != null && hv <= v ? hv : v);
+  stage.querySelector("input[type=range]").value = v;
+  stage.querySelector(".when").innerHTML = whenTxt(t, v);
+}
+function setCur(stage, v){ const t = byKey(stage.dataset.k); CUR.set(key(t), Math.max(0, Math.min(t.d.length-1, v))); paint(stage); }
+const list = document.getElementById("list");
+list.addEventListener("input", e => { const s = e.target.closest(".stage"); if (s && e.target.type==="range") setCur(s, +e.target.value); });
+list.addEventListener("click", e => { const b = e.target.closest(".ctrl button"); if (!b) return;
+  const s = b.closest(".stage"), t = byKey(s.dataset.k), a = b.dataset.act;
+  setCur(s, a==="start" ? startIdx(t) : a==="all" ? t.d.length-1 : curOf(t) + (+a)); });
+function idxAt(svg, t, clientX){
+  const r = svg.getBoundingClientRect(), vx = (clientX - r.left) / r.width * G.W, step = (G.W - G.padL - G.padR) / t.d.length;
+  return Math.max(0, Math.min(t.d.length - 1, Math.floor((vx - G.padL) / step)));
+}
+let drag = null;
+list.addEventListener("pointerdown", e => { const svg = e.target.closest(".svgbox svg"); if (!svg) return;
+  const s = svg.closest(".stage"), t = byKey(s.dataset.k);
+  drag = {s, x0: e.clientX, c0: curOf(t), px: svg.getBoundingClientRect().width * (1 - (G.padL+G.padR)/G.W) / t.d.length};
+  try { svg.setPointerCapture(e.pointerId); } catch (_) {} });
+list.addEventListener("pointermove", e => {
+  if (drag){ setCur(drag.s, drag.c0 + Math.round((e.clientX - drag.x0) / drag.px)); return; }
+  const svg = e.target.closest(".svgbox svg"); if (!svg) return;
+  const s = svg.closest(".stage"), t = byKey(s.dataset.k), i = idxAt(svg, t, e.clientX);
+  if (HOV.get(key(t)) !== i){ HOV.set(key(t), i); paint(s); } });
+list.addEventListener("pointerleave", e => {}, true);
+list.addEventListener("mouseout", e => { const svg = e.target.closest && e.target.closest(".svgbox svg");
+  if (svg && !svg.contains(e.relatedTarget)){ const s = svg.closest(".stage"); HOV.delete(s.dataset.k); paint(s); } });
+["pointerup","pointercancel"].forEach(ev => list.addEventListener(ev, () => drag = null));
+list.addEventListener("keydown", e => { const s = e.target.closest(".stage"); if (!s || e.target.type==="range") return;
+  if (e.key==="ArrowRight"||e.key==="ArrowLeft"){ e.preventDefault(); setCur(s, curOf(byKey(s.dataset.k)) + (e.key==="ArrowRight"?1:-1)); } });
+document.getElementById("rib").addEventListener("change", e => { show.rib = e.target.checked; render(); });
+list.addEventListener("click", e => { const b = e.target.closest(".rev"); if (b) toggleReviewed(b.dataset.rid); });
+["10","21","50"].forEach(n => document.getElementById("em"+n).addEventListener("change", e => { show["e"+n] = e.target.checked; render(); }));
+document.getElementById("vol").addEventListener("change", e => { show.vol = e.target.checked; render(); });
+document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+  filt = b.dataset.f; document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", x===b)); render(); }));
+document.getElementById("sort").addEventListener("change", e => { sortBy = e.target.value; render(); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+new MutationObserver(render).observe(document.documentElement, {attributes:true, attributeFilter:["data-theme"]});
+render();
+</script>

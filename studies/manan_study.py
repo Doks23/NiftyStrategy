@@ -192,8 +192,8 @@ def context(df: pd.DataFrame, i: int, dots: set) -> dict:
     )
 
 
-def main():
-    t = pd.read_csv("studies/manan_trades.csv", parse_dates=["date"])
+def main(trades="studies/manan_trades.csv", prefix="studies/manan", after=9):
+    t = pd.read_csv(trades, parse_dates=["date"])
     t["skip"] = t.symbol.str.contains(" ")
     eq = t[~t.skip].copy()
     eq["sym"] = eq.symbol.map(lambda s: ALIAS.get(s, s))
@@ -236,14 +236,14 @@ def main():
             rvol_at=round(hod["rvol"], 1) if "entry" in hod else None,
             rvol_block=hod.get("blocked")))
     out = pd.DataFrame(rows)
-    out.to_csv("studies/manan_study.csv", index=False)
+    out.to_csv(prefix + "_study.csv", index=False)
     # chart data for the replay page
     charts = []
     for r in out.itertuples():
         s = ALIAS.get(r.symbol, r.symbol); df = daily.get(s)
         if df is None or pd.Timestamp(r.date) not in df.index:
             continue
-        i = df.index.get_loc(pd.Timestamp(r.date)); a, b = max(0, i - 40), min(len(df), i + 9)
+        i = df.index.get_loc(pd.Timestamp(r.date)); a, b = max(0, i - 40), min(len(df), i + (after if isinstance(after, int) else int(after.get(r.symbol, 9))))
         w = df.iloc[a:b]; C = df.Close
         dots = {str(ev["date"].date()) for ev in contraction_days(df, DotCfg())} if i >= 60 else set()
         rec = {k: (None if (isinstance(v, float) and np.isnan(v)) else v) for k, v in r._asdict().items() if k != "Index"}
@@ -254,7 +254,7 @@ def main():
                    e50=C.ewm(span=50, adjust=False).mean().iloc[a:b].round(2).tolist(),
                    dots=[x for x in (str(z.date()) for z in w.index) if x in dots])
         charts.append(rec)
-    json.dump(charts, open("studies/manan_charts.json", "w"), separators=(",", ":"), default=str)
+    json.dump(charts, open(prefix + "_charts.json", "w"), separators=(",", ":"), default=str)
     print(out.drop(columns=[c for c in out.columns if c.startswith("pp_armed")]).to_string())
 
 
