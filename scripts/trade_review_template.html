@@ -45,7 +45,14 @@ dt{color:var(--muted)} dd{margin:0;font-family:var(--mono);font-variant-numeric:
 .tv{display:inline-block;margin-top:6px;font-weight:600;font-size:.85rem;color:var(--accent);text-decoration:none;
   border:1px solid var(--accent);border-radius:8px;padding:6px 10px;justify-self:start}
 .tv:hover{background:var(--accent);color:var(--panel)}
-.chart{min-width:0;overflow-x:auto}
+.chart{min-width:0;overflow-x:auto;display:grid;gap:8px}
+.chart svg{touch-action:pan-y;cursor:ew-resize}
+.replay{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:.8rem;color:var(--muted)}
+.replay input[type=range]{flex:1 1 180px;min-width:0;accent-color:var(--accent)}
+.replay button{font:600 .8rem var(--display);border:1px solid var(--line);background:var(--panel);color:var(--fg);
+  border-radius:8px;padding:5px 10px;cursor:pointer;min-width:34px}
+.replay button:focus-visible,.replay input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.replay .day{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--fg);min-width:11ch}
 .chart svg{display:block;width:100%;height:auto;min-width:420px}
 .chart text{font:10px var(--mono);fill:var(--muted)}
 .empty{color:var(--muted);padding:20px 0}
@@ -55,7 +62,7 @@ dt{color:var(--muted)} dd{margin:0;font-family:var(--mono);font-variant-numeric:
 <div class="wrap">
   <header>
     <h1>RVOL Dot Trade Review</h1>
-    <p class="sub">Every trade from the RVOL → HOD backtest after a contraction dot (dot valid 3 days), 13 Jun – 13 Oct 2026, NSE. Open any stock on TradingView's daily chart, or read the setup on the chart beside it.</p>
+    <p class="sub">Every trade from the RVOL → HOD backtest after a contraction dot (dot valid 3 days), 13 Jun – 13 Oct 2026, NSE. Each chart opens on the contraction-dot day with the future hidden. Judge the setup, then drag the chart or press ▶ to reveal the next candles. Open any stock on TradingView's daily chart for the full picture.</p>
   </header>
   <div class="stats" id="stats"></div>
   <div class="bar" role="group" aria-label="Filter trades">
@@ -80,10 +87,14 @@ dt{color:var(--muted)} dd{margin:0;font-family:var(--mono);font-variant-numeric:
 const T = __DATA__;
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let filt = "all", sortBy = "date";
+const CUR = new Map();   // trade key -> revealed candle index
+const key = t => t.sym + "|" + t.entry_date;
+const startIdx = t => Math.max(0, t.d.indexOf(t.dot));
+const curOf = t => CUR.has(key(t)) ? CUR.get(key(t)) : startIdx(t);
 const fmt = (x, d=2) => Number(x).toFixed(d);
 function tvLink(s){ return "https://www.tradingview.com/chart/?symbol=" + encodeURIComponent("NSE:" + s) + "&interval=D"; }
 
-function chart(t){
+function chart(t, cur){
   const W = 760, H = 230, padL = 6, padR = 52, padT = 16, padB = 22, n = t.d.length;
   const lo = Math.min(...t.l, t.stop) * 0.995, hi = Math.max(...t.h) * 1.01;
   const y = v => padT + (hi - v) / (hi - lo) * (H - padT - padB);
@@ -94,21 +105,22 @@ function chart(t){
   for (let k = 0; k <= 4; k++){ const v = lo + (hi - lo) * k / 4;
     g += `<line x1="${padL}" x2="${W-padR}" y1="${y(v)}" y2="${y(v)}" stroke="${line}" stroke-width="1"/><text x="${W-padR+4}" y="${y(v)+3}">${fmt(v, v<100?2:0)}</text>`; }
   const iDot = t.d.indexOf(t.dot), iE = t.d.indexOf(t.entry_date), iX = t.d.indexOf(t.exit_date);
-  if (iE >= 0) g += `<rect x="${x(iE)-step/2}" y="${padT}" width="${step*(Math.max(iX,iE)-iE+1)}" height="${H-padT-padB}" fill="${acc}" opacity="0.07"/>`;
-  for (let i = 0; i < n; i++){ const c = t.c[i] >= t.o[i] ? up : dn;
+  if (iE >= 0 && iE <= cur) g += `<rect x="${x(iE)-step/2}" y="${padT}" width="${step*(Math.min(Math.max(iX,iE),cur)-iE+1)}" height="${H-padT-padB}" fill="${acc}" opacity="0.07"/>`;
+  if (cur < n-1) g += `<rect x="${x(cur)+step/2}" y="${padT}" width="${W-padR-(x(cur)+step/2)}" height="${H-padT-padB}" fill="${line}" opacity="0.35"/><text x="${(x(cur)+step/2+W-padR)/2}" y="${H/2}" text-anchor="middle">future hidden, drag right</text>`;
+  for (let i = 0; i <= cur; i++){ const c = t.c[i] >= t.o[i] ? up : dn;
     g += `<line x1="${x(i)}" x2="${x(i)}" y1="${y(t.h[i])}" y2="${y(t.l[i])}" stroke="${c}" stroke-width="1"/>`;
     const top = y(Math.max(t.o[i], t.c[i])), bh = Math.max(1, Math.abs(y(t.o[i]) - y(t.c[i])));
     g += `<rect x="${x(i)-bw/2}" y="${top}" width="${bw}" height="${bh}" fill="${c}"/>`; }
-  g += `<polyline fill="none" stroke="${ema}" stroke-width="1.5" points="${t.e.map((v,i)=>x(i)+","+y(v)).join(" ")}"/>`;
-  if (iDot >= 0) g += `<circle cx="${x(iDot)}" cy="${y(t.h[iDot])-8}" r="4" fill="${dot}"/>`;
-  if (iE >= 0){
-    const xe = iX >= 0 ? x(iX) : x(n-1);
+  g += `<polyline fill="none" stroke="${ema}" stroke-width="1.5" points="${t.e.slice(0,cur+1).map((v,i)=>x(i)+","+y(v)).join(" ")}"/>`;
+  if (iDot >= 0 && iDot <= cur) g += `<circle cx="${x(iDot)}" cy="${y(t.h[iDot])-8}" r="4" fill="${dot}"/>`;
+  if (iE >= 0 && iE <= cur){
+    const xe = Math.min(iX >= 0 ? x(iX) : x(n-1), x(cur));
     g += `<line x1="${x(iE)-step/2}" x2="${xe+step/2}" y1="${y(t.stop)}" y2="${y(t.stop)}" stroke="${st}" stroke-width="1.5" stroke-dasharray="4 3"/>`;
     g += `<line x1="${x(iE)-step/2}" x2="${xe+step/2}" y1="${y(t.entry)}" y2="${y(t.entry)}" stroke="${acc}" stroke-width="1.5"/>`;
     g += `<path d="M${x(iE)},${y(t.l[iE])+6} l-5,9 h10 z" fill="${acc}"/>`; }
-  if (iX >= 0 && iX !== iE) g += `<path d="M${x(iX)},${y(t.h[iX])-6} l-5,-9 h10 z" fill="${mu}"/>`;
+  if (iX >= 0 && iX !== iE && iX <= cur) g += `<path d="M${x(iX)},${y(t.h[iX])-6} l-5,-9 h10 z" fill="${mu}"/>`;
   const lbl = i => `<text x="${x(i)}" y="${H-6}" text-anchor="middle">${t.d[i].slice(5)}</text>`;
-  [0, iDot, iE, n-1].filter((v,i,a)=>v>=0 && a.indexOf(v)===i).forEach(i => g += lbl(i));
+  [0, iDot, iE, cur].filter(v=>v<=cur).filter((v,i,a)=>v>=0 && a.indexOf(v)===i).forEach(i => g += lbl(i));
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${t.sym} daily candles around the trade">${g}</svg>`;
 }
 
@@ -135,9 +147,42 @@ function render(){
         </dl>
         <a class="tv" href="${tvLink(t.sym)}" target="_blank" rel="noopener">Open ${t.sym} on TradingView ↗</a>
       </div>
-      <div class="chart">${chart(t)}</div>
+      <div class="chart" data-k="${key(t)}">
+        <div class="svgbox">${chart(t, curOf(t))}</div>
+        <div class="replay">
+          <button type="button" data-act="dot" title="Back to the dot day">Dot</button>
+          <button type="button" data-act="-1" aria-label="One day back">◀</button>
+          <input type="range" min="0" max="${t.d.length-1}" value="${curOf(t)}" aria-label="Reveal candles up to day" id="r-${t.sym}-${t.entry_date}">
+          <button type="button" data-act="1" aria-label="One day forward">▶</button>
+          <button type="button" data-act="all">Show all</button>
+          <span class="day">${t.d[curOf(t)]} · dot</span>
+        </div>
+      </div>
     </article>`).join("") : `<p class="empty">No trades match this filter.</p>`;
 }
+const byKey = k => T.find(t => key(t) === k);
+function setCur(box, v){
+  const t = byKey(box.dataset.k), n = t.d.length; v = Math.max(0, Math.min(n-1, v));
+  CUR.set(key(t), v);
+  box.querySelector(".svgbox").innerHTML = chart(t, v);
+  box.querySelector("input[type=range]").value = v;
+  box.querySelector(".day").textContent = t.d[v] + (t.d[v]===t.dot ? " · dot" : t.d[v]===t.entry_date ? " · entry" : t.d[v]===t.exit_date ? " · exit" : "");
+}
+const list = document.getElementById("list");
+list.addEventListener("input", e => { const box = e.target.closest(".chart"); if (box && e.target.type==="range") setCur(box, +e.target.value); });
+list.addEventListener("click", e => { const b = e.target.closest(".replay button"); if (!b) return;
+  const box = b.closest(".chart"), t = byKey(box.dataset.k), a = b.dataset.act;
+  setCur(box, a==="dot" ? startIdx(t) : a==="all" ? t.d.length-1 : curOf(t) + (+a)); });
+// drag across the chart: each candle-width of movement reveals or hides one candle
+let drag = null;
+list.addEventListener("pointerdown", e => { const svg = e.target.closest(".svgbox svg"); if (!svg) return;
+  const box = svg.closest(".chart"), t = byKey(box.dataset.k);
+  drag = {box, x0: e.clientX, c0: curOf(t), px: svg.getBoundingClientRect().width / t.d.length};
+  try { svg.setPointerCapture(e.pointerId); } catch (_) {} });
+list.addEventListener("pointermove", e => { if (drag) setCur(drag.box, drag.c0 + Math.round((e.clientX - drag.x0) / drag.px)); });
+["pointerup","pointercancel"].forEach(ev => list.addEventListener(ev, () => drag = null));
+list.addEventListener("keydown", e => { const box = e.target.closest(".chart"); if (!box || e.target.type==="range") return;
+  if (e.key==="ArrowRight"||e.key==="ArrowLeft"){ e.preventDefault(); setCur(box, curOf(byKey(box.dataset.k)) + (e.key==="ArrowRight"?1:-1)); } });
 document.querySelectorAll(".chip").forEach(b => b.addEventListener("click", () => {
   filt = b.dataset.f; document.querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", x===b)); render(); }));
 document.getElementById("sort").addEventListener("change", e => { sortBy = e.target.value; render(); });
