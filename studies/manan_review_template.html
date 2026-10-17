@@ -8,18 +8,18 @@
 :root{
   --bg:#eef1f4; --surface:#ffffff; --raise:#f6f8fa; --fg:#121a22; --muted:#5f6b78; --faint:#8a95a1; --line:#dde3e9; --grid:#edf1f4;
   --accent:#1d5fd1; --up:#0e9f6e; --down:#e0434f; --e10:#e8930c; --e21:#2f6fd6; --e50:#0e9f6e; --pp:#1d5fd1; --rv:#d9480f; --dot:#e8930c;
-  --mask:#e9edf1; --day:#1d5fd1;
+  --mask:#e9edf1; --day:#1d5fd1; --nr:#d633e0; --rib-up:#0e9f6e; --rib-dn:#e0434f;
   --sans:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0b0f14; --surface:#121820; --raise:#18202a; --fg:#e6ebf0; --muted:#9aa6b2; --faint:#6c7885; --line:#243040; --grid:#1a222c;
   --accent:#5b8ff0; --up:#26c08a; --down:#f06470; --e10:#f5a623; --e21:#6aa0ff; --e50:#26c08a; --pp:#6aa0ff; --rv:#ff8a4c; --dot:#f5a623;
-  --mask:#161d26; --day:#5b8ff0; color-scheme:dark}}
+  --mask:#161d26; --day:#5b8ff0; --nr:#e879f9; --rib-up:#26c08a; --rib-dn:#f06470; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0b0f14; --surface:#121820; --raise:#18202a; --fg:#e6ebf0; --muted:#9aa6b2; --faint:#6c7885; --line:#243040; --grid:#1a222c;
   --accent:#5b8ff0; --up:#26c08a; --down:#f06470; --e10:#f5a623; --e21:#6aa0ff; --e50:#26c08a; --pp:#6aa0ff; --rv:#ff8a4c; --dot:#f5a623;
-  --mask:#161d26; --day:#5b8ff0; color-scheme:dark}
+  --mask:#161d26; --day:#5b8ff0; --nr:#e879f9; --rib-up:#26c08a; --rib-dn:#f06470; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font:14px/1.45 var(--sans);
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
@@ -98,6 +98,11 @@ svg text{font:10px var(--mono);fill:var(--faint)}
 .when i{font-style:normal;font:600 .66rem var(--sans);text-transform:uppercase;letter-spacing:.06em;padding:2px 6px;border-radius:4px;background:var(--raise);color:var(--muted);border:1px solid var(--line)}
 .when i.td{background:color-mix(in srgb,var(--day) 14%,var(--surface));color:var(--day);border-color:color-mix(in srgb,var(--day) 40%,var(--line))}
 .empty{color:var(--muted);padding:20px 0}
+.rev{font:600 .78rem var(--sans);display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:8px;padding:5px 10px;cursor:pointer}
+.rev:hover{border-color:var(--up);color:var(--up)}
+.rev[aria-pressed="true"]{background:var(--up);border-color:var(--up);color:#fff}
+.card.done{opacity:.72}
+.card.done .sym::after{content:" ✓";color:var(--up)}
 @media (max-width:860px){.card-b{grid-template-columns:1fr}.rail{border-right:0;border-bottom:1px solid var(--line)}.pills{margin-left:0}}
 @media (prefers-reduced-motion:no-preference){.card{transition:border-color .15s}.card:hover{border-color:color-mix(in srgb,var(--accent) 35%,var(--line))}}
 </style>
@@ -128,12 +133,16 @@ svg text{font:10px var(--mono);fill:var(--faint)}
       <button id="f-pp" aria-pressed="false" data-f="pp">PP VOL entry</button>
       <button id="f-rv" aria-pressed="false" data-f="rv">RVOL entry</button>
       <button id="f-none" aria-pressed="false" data-f="none">No entry</button>
+      <button id="f-todo" aria-pressed="false" data-f="todo">Not reviewed</button>
+      <button id="f-done" aria-pressed="false" data-f="done">Reviewed</button>
     </div>
     <div class="toggles" role="group" aria-label="Moving averages">
-      <label for="em10"><input type="checkbox" id="em10" checked><span class="sw" style="background:var(--e10)"></span>EMA 10</label>
-      <label for="em21"><input type="checkbox" id="em21" checked><span class="sw" style="background:var(--e21)"></span>EMA 21</label>
+      <label for="rib"><input type="checkbox" id="rib" checked><span class="sw" style="height:8px;background:linear-gradient(90deg,var(--rib-up),var(--rib-dn));opacity:.5"></span>10/21 ribbon</label>
+      <label for="em10"><input type="checkbox" id="em10"><span class="sw" style="background:var(--e10)"></span>EMA 10</label>
+      <label for="em21"><input type="checkbox" id="em21"><span class="sw" style="background:var(--e21)"></span>EMA 21</label>
       <label for="em50"><input type="checkbox" id="em50" checked><span class="sw" style="background:var(--e50)"></span>EMA 50</label>
       <label for="vol"><input type="checkbox" id="vol" checked>Volume</label>
+      <span style="display:flex;align-items:center;gap:5px"><span class="sw" style="width:8px;height:12px;background:var(--nr)"></span>NR7 + inside bar</span>
     </div>
     <select id="sort" aria-label="Sort trades"><option value="date">Sort: trade date</option><option value="sym">Sort: symbol</option></select>
   </div>
@@ -149,8 +158,40 @@ const sgn = (x, d=1) => x == null ? "–" : (x > 0 ? "+" : "") + fmt(x, d) + "%"
 const kfmt = v => v >= 1e7 ? (v/1e7).toFixed(1)+"Cr" : v >= 1e5 ? (v/1e5).toFixed(1)+"L" : v >= 1e3 ? (v/1e3).toFixed(0)+"K" : String(Math.round(v));
 const tvLink = s => "https://www.tradingview.com/chart/?symbol=" + encodeURIComponent("NSE:" + s) + "&interval=D";
 const yes = b => b === true || b === "True";
-const show = {e10: true, e21: true, e50: true, vol: true};
+const show = {e10: false, e21: false, e50: true, vol: true, rib: true};
 let filt = "all", sortBy = "date";
+// ── Reviewed marks: saved per person in the page database; this browser only if that is unavailable ──
+const rid = t => ("rev_" + t.symbol + "_" + t.date).replace(/[^A-Za-z0-9_-]/g, "_");
+let REV = new Set(), revCol = null;
+const LS = "manan-reviewed";
+function lsLoad(){ try { return new Set(JSON.parse(localStorage.getItem(LS) || "[]")); } catch (_) { return new Set(); } }
+function lsSave(){ try { localStorage.setItem(LS, JSON.stringify([...REV])); } catch (_) {} }
+function paintReviewed(){
+  document.querySelectorAll(".card[data-rid]").forEach(c => { const on = REV.has(c.dataset.rid); c.classList.toggle("done", on);
+    const b = c.querySelector(".rev"); b.setAttribute("aria-pressed", on); b.textContent = on ? "✓ Reviewed" : "Mark reviewed"; });
+  const k = document.getElementById("revk"); if (k) k.textContent = T.filter(t => REV.has(rid(t))).length;
+}
+async function toggleReviewed(id){
+  const on = !REV.has(id);
+  on ? REV.add(id) : REV.delete(id); paintReviewed();
+  if (revCol){ try { on ? await revCol.doc(id).set({reviewed: true, at: Date.now()}) : await revCol.doc(id).delete(); }
+    catch (_) { on ? REV.delete(id) : REV.add(id); paintReviewed(); } }
+  else lsSave();
+  if (filt === "todo" || filt === "done") render();
+}
+REV = lsLoad();
+(async () => {
+  try {
+    const db = await claude.use("db"), user = await claude.use("user");
+    const me = user ? await user.id() : null;
+    if (!db || !me) return;
+    revCol = db.collection("data/users/" + me);
+    revCol.onSnapshot(snap => {
+      REV = new Set(snap.docs.filter(d => d.exists && d.id.startsWith("rev_")).map(d => d.id));
+      if (filt === "todo" || filt === "done") render(); else paintReviewed();
+    }, () => {});
+  } catch (_) {}
+})();
 const CUR = new Map(), HOV = new Map();
 const key = t => t.sym + "|" + t.date;
 const tIdx = t => t.d.indexOf(t.date);
@@ -196,8 +237,12 @@ function chart(t, cur){
     if (t.v50) g += `<polyline fill="none" stroke="${C("--muted")}" stroke-width="1" stroke-dasharray="3 2" points="${t.v50.slice(0,cur+1).map((v,i)=>v?x(i)+","+vy(v):"").filter(Boolean).join(" ")}"/>`;
     g += `<text x="${plotR+6}" y="${volTop+10}">VOL</text>`;
   }
-  // candles
-  for (let i = 0; i <= cur; i++){ const col = t.c[i] >= t.o[i] ? C("--up") : C("--down");
+  // 10/21 ribbon: green while EMA 10 is above EMA 21, red otherwise
+  if (show.rib) for (let i = 1; i <= cur; i++){
+    const up = t.e10[i] >= t.e21[i];
+    g += `<path d="M${x(i-1)},${y(t.e10[i-1])} L${x(i)},${y(t.e10[i])} L${x(i)},${y(t.e21[i])} L${x(i-1)},${y(t.e21[i-1])} Z" fill="${C(up ? "--rib-up" : "--rib-dn")}" opacity="0.16"/>`; }
+  // candles (NR7 + inside bar painted pink)
+  for (let i = 0; i <= cur; i++){ const col = isNrIb(t, i) ? C("--nr") : t.c[i] >= t.o[i] ? C("--up") : C("--down");
     g += `<line x1="${x(i)}" x2="${x(i)}" y1="${y(t.h[i])}" y2="${y(t.l[i])}" stroke="${col}" stroke-width="1.1"/>`;
     const top = y(Math.max(t.o[i], t.c[i])), bh = Math.max(1, Math.abs(y(t.o[i]) - y(t.c[i])));
     g += `<rect x="${x(i)-bw/2}" y="${top}" width="${bw}" height="${bh}" fill="${col}" rx="0.6"/>`; }
@@ -228,11 +273,18 @@ function chart(t, cur){
   if (hv != null && hv <= cur) g += `<line x1="${x(hv)}" x2="${x(hv)}" y1="${G.padT}" y2="${H-G.axisH}" stroke="${C("--muted")}" stroke-dasharray="2 2"/>`;
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${t.sym} daily candles around ${t.date}">${g}</svg>`;
 }
+function isNrIb(t, i){
+  if (i < 6) return false;
+  const r = t.h[i] - t.l[i];
+  for (let k = i - 6; k < i; k++) if (t.h[k] - t.l[k] < r) return false;
+  return t.h[i] < t.h[i-1] && t.l[i] > t.l[i-1];
+}
 function ohlc(t, i){
   if (i == null) return "";
   const ch = i > 0 ? (t.c[i] / t.c[i-1] - 1) * 100 : 0;
   return `<span>${t.d[i]}</span><span>O <b>${fmt(t.o[i])}</b></span><span>H <b>${fmt(t.h[i])}</b></span><span>L <b>${fmt(t.l[i])}</b></span>` +
-    `<span>C <b>${fmt(t.c[i])}</b></span><span class="${ch>=0?"pos":"neg"}">${sgn(ch,2)}</span><span>Vol <b>${kfmt(t.v[i])}</b></span>`;
+    `<span>C <b>${fmt(t.c[i])}</b></span><span class="${ch>=0?"pos":"neg"}">${sgn(ch,2)}</span><span>Vol <b>${kfmt(t.v[i])}</b></span>` +
+    (isNrIb(t, i) ? `<span style="color:var(--nr);font-weight:600">NR7 + IB</span>` : "");
 }
 function pill(kind, label, ok, text){
   return `<span class="pill ${ok ? "on " + kind : ""}" title="${text}"><span class="ic"></span><span class="k">${label}</span><span class="v">${text}</span></span>`;
@@ -267,8 +319,11 @@ function whenTxt(t, v){
 }
 function card(t){
   const v = curOf(t);
-  return `<article class="card">
-    <div class="card-h"><span class="sym">${t.symbol}</span><span class="date">${t.date}</span><div class="pills">${pills(t)}</div></div>
+  const done = REV.has(rid(t));
+  return `<article class="card ${done?"done":""}" data-rid="${rid(t)}">
+    <div class="card-h"><span class="sym">${t.symbol}</span><span class="date">${t.date}</span>
+      <button type="button" class="rev" data-rid="${rid(t)}" aria-pressed="${done}">${done ? "✓ Reviewed" : "Mark reviewed"}</button>
+      <div class="pills">${pills(t)}</div></div>
     <div class="card-b">
       <div class="rail">${metrics(t)}${traits(t)}<a class="tv" href="${tvLink(t.sym)}" target="_blank" rel="noopener">Open ${t.symbol} on TradingView ↗</a></div>
       <div class="stage" data-k="${key(t)}">
@@ -284,10 +339,11 @@ function card(t){
   </article>`;
 }
 function render(){
-  let rows = T.filter(t => filt==="all" || (filt==="pp"&&t.pp_entry!=null) || (filt==="rv"&&t.rvol_entry!=null) || (filt==="none"&&t.pp_entry==null&&t.rvol_entry==null));
+  let rows = T.filter(t => filt==="all" || (filt==="pp"&&t.pp_entry!=null) || (filt==="rv"&&t.rvol_entry!=null) || (filt==="none"&&t.pp_entry==null&&t.rvol_entry==null)
+    || (filt==="todo"&&!REV.has(rid(t))) || (filt==="done"&&REV.has(rid(t))));
   rows.sort(sortBy==="sym" ? (a,b)=>a.symbol.localeCompare(b.symbol)||a.date.localeCompare(b.date) : (a,b)=>a.date.localeCompare(b.date)||a.symbol.localeCompare(b.symbol));
   const pp = rows.filter(t=>t.pp_entry!=null).length, rv = rows.filter(t=>t.rvol_entry!=null).length, any = rows.filter(t=>t.pp_entry!=null||t.rvol_entry!=null).length;
-  document.getElementById("kpis").innerHTML = [[rows.length,"Trades shown"],[pp,"PP VOL entries"],[rv,"RVOL entries"],[any,"At least one entry"]]
+  document.getElementById("kpis").innerHTML = [[rows.length,"Trades shown"],[pp,"PP VOL entries"],[rv,"RVOL entries"],[any,"At least one entry"],[`<span id="revk">${T.filter(t=>REV.has(rid(t))).length}</span> / ${T.length}`,"Reviewed"]]
     .map(([v,k])=>`<div class="kpi"><b>${v}</b><span>${k}</span></div>`).join("");
   document.getElementById("list").innerHTML = rows.length ? rows.map(card).join("") : `<p class="empty">No trades match this filter.</p>`;
 }
@@ -325,6 +381,8 @@ list.addEventListener("mouseout", e => { const svg = e.target.closest && e.targe
 ["pointerup","pointercancel"].forEach(ev => list.addEventListener(ev, () => drag = null));
 list.addEventListener("keydown", e => { const s = e.target.closest(".stage"); if (!s || e.target.type==="range") return;
   if (e.key==="ArrowRight"||e.key==="ArrowLeft"){ e.preventDefault(); setCur(s, curOf(byKey(s.dataset.k)) + (e.key==="ArrowRight"?1:-1)); } });
+document.getElementById("rib").addEventListener("change", e => { show.rib = e.target.checked; render(); });
+list.addEventListener("click", e => { const b = e.target.closest(".rev"); if (b) toggleReviewed(b.dataset.rid); });
 ["10","21","50"].forEach(n => document.getElementById("em"+n).addEventListener("change", e => { show["e"+n] = e.target.checked; render(); }));
 document.getElementById("vol").addEventListener("change", e => { show.vol = e.target.checked; render(); });
 document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
