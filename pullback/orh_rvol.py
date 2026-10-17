@@ -244,6 +244,7 @@ def main():
     ap.add_argument("--trade-from", default="2025-10-13")
     ap.add_argument("--rvol", type=float, default=9.0)
     ap.add_argument("--or-mins", type=int, default=11)
+    ap.add_argument("--dot-days", type=int, default=1, help="sessions after a contraction dot that can trigger")
     ap.add_argument("--out", default="pullback/results_orh")
     a = ap.parse_args()
     k = Cfg(rvol_pct=a.rvol, or_mins=a.or_mins)
@@ -262,8 +263,14 @@ def main():
         if len(df) < 120:
             continue
         busy_until = None
+        # each dot arms the next `dot_days` sessions; a later dot overrides an earlier one
+        cand = {}
         for ev in contraction_days(df, k):
-            d1 = ev["next_date"]
+            for off in range(1, a.dot_days + 1):
+                if ev["i"] + off < len(df):
+                    cand[ev["i"] + off] = ev
+        for i_day in sorted(cand):
+            ev, d1 = cand[i_day], df.index[i_day]
             if d1 < t0 or (busy_until is not None and d1 <= busy_until):
                 continue
             if to[s].asof(ev["date"]) < k.min_turnover_cr:
@@ -287,7 +294,7 @@ def main():
                 pnl, why, xd = follow_daily(df, i1, e["entry"], e["stop"], ev["e21"], k)
             pnl -= 2 * k.cost * e["entry"]
             R = e["entry"] - e["stop"]
-            rows.append(dict(sym=s, contraction=ev["date"].date(), entry_date=d1.date(), t_entry=e["t_entry"],
+            rows.append(dict(sym=s, contraction=ev["date"].date(), days_after_dot=i_day - ev["i"], entry_date=d1.date(), t_entry=e["t_entry"],
                              rvol_pct=round(e["rvol"], 1), entry=round(e["entry"], 2),
                              stop_pct=round(R / e["entry"] * 100, 2), R=pnl / R, ret_pct=pnl / e["entry"] * 100,
                              why=why, exit_date=xd.date(), mkt=bool(mkt.asof(d1))))
