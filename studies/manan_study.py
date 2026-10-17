@@ -248,7 +248,7 @@ def main():
         dots = {str(ev["date"].date()) for ev in contraction_days(df, DotCfg())} if i >= 60 else set()
         rec = {k: (None if (isinstance(v, float) and np.isnan(v)) else v) for k, v in r._asdict().items() if k != "Index"}
         rec.update(sym=s, d=[x.strftime("%Y-%m-%d") for x in w.index], o=w.Open.round(2).tolist(),
-                   h=w.High.round(2).tolist(), l=w.Low.round(2).tolist(), c=w.Close.round(2).tolist(),
+                   h=w.High.round(2).tolist(), l=w.Low.round(2).tolist(), c=w.Close.round(2).tolist(), v=w.Volume.round(0).tolist(), v50=df.Volume.rolling(50, min_periods=10).mean().iloc[a:b].round(0).tolist(),
                    e10=C.ewm(span=10, adjust=False).mean().iloc[a:b].round(2).tolist(),
                    e21=C.ewm(span=21, adjust=False).mean().iloc[a:b].round(2).tolist(),
                    e50=C.ewm(span=50, adjust=False).mean().iloc[a:b].round(2).tolist(),
