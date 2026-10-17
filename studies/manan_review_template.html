@@ -1,0 +1,234 @@
+<title>Manan Trade Study</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: trading-journal list — summary strip, filter row, one row per trade (facts left, chart right) */
+:root{
+  --bg:#f3f5f4; --panel:#ffffff; --fg:#17201d; --muted:#5d6b66; --line:#d8dfdc;
+  --accent:#0f6e63; --up:#14946f; --down:#d6455d; --dot:#e8930c; --stop:#b8344b; --ema:#7a5cc7; --e10:#e8930c; --e21:#2f6fd6; --e50:#14946f; --pp:#2f6fd6; --rv:#d9480f;
+  --display:"Archivo", "Helvetica Neue", Arial, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1513; --panel:#16201d; --fg:#e4ece9; --muted:#93a39d; --line:#2a3633;
+  --accent:#4cc2b2; --up:#3cc795; --down:#f0697f; --dot:#f5a623; --stop:#f0697f; --ema:#a68cf0; --e10:#f5a623; --e21:#6aa0ff; --e50:#3cc795; --pp:#6aa0ff; --rv:#ff8a4c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1513; --panel:#16201d; --fg:#e4ece9; --muted:#93a39d; --line:#2a3633;
+  --accent:#4cc2b2; --up:#3cc795; --down:#f0697f; --dot:#f5a623; --stop:#f0697f; --ema:#a68cf0; --e10:#f5a623; --e21:#6aa0ff; --e50:#3cc795; --pp:#6aa0ff; --rv:#ff8a4c; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--display);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:18px}
+h1{font-size:1.6rem;font-weight:800;margin:0;letter-spacing:-.01em;text-wrap:balance}
+.sub{color:var(--muted);margin:4px 0 0;max-width:70ch;line-height:1.45}
+.stats{display:flex;flex-wrap:wrap;gap:8px 26px;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.stat b{display:block;font-size:1.25rem}
+.stat span{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip{font:600 .82rem var(--display);border:1px solid var(--line);background:var(--panel);color:var(--fg);
+  border-radius:999px;padding:6px 12px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--panel)}
+.chip:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+select{font:600 .82rem var(--display);padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--fg)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.78rem;color:var(--muted)}
+.legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px}
+.list{display:grid;gap:12px}
+.trade{display:grid;grid-template-columns:250px minmax(0,1fr);gap:14px;background:var(--panel);
+  border:1px solid var(--line);border-radius:10px;padding:14px;border-left:4px solid var(--line)}
+.trade.win{border-left-color:var(--up)} .trade.loss{border-left-color:var(--down)}
+.facts{display:grid;gap:6px;align-content:start;min-width:0}
+.sym{font-size:1.15rem;font-weight:800;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.r{font-family:var(--mono);font-weight:600}
+.r.pos{color:var(--up)} .r.neg{color:var(--down)}
+dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:.82rem}
+dt{color:var(--muted)} dd{margin:0;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.tv{display:inline-block;margin-top:6px;font-weight:600;font-size:.85rem;color:var(--accent);text-decoration:none;
+  border:1px solid var(--accent);border-radius:8px;padding:6px 10px;justify-self:start}
+.tv:hover{background:var(--accent);color:var(--panel)}
+.chart{min-width:0;overflow-x:auto;display:grid;gap:8px}
+.chart svg{touch-action:pan-y;cursor:ew-resize}
+.replay{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:.8rem;color:var(--muted)}
+.replay input[type=range]{flex:1 1 180px;min-width:0;accent-color:var(--accent)}
+.replay button{font:600 .8rem var(--display);border:1px solid var(--line);background:var(--panel);color:var(--fg);
+  border-radius:8px;padding:5px 10px;cursor:pointer;min-width:34px}
+.replay button:focus-visible,.replay input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.replay .day{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--fg);min-width:11ch}
+.chart svg{display:block;width:100%;height:auto;min-width:420px}
+.chart text{font:10px var(--mono);fill:var(--muted)}
+.tag{font:600 .72rem var(--display);border-radius:999px;padding:2px 8px;border:1px solid var(--line);color:var(--muted)}
+.tag.on{border-color:var(--accent);color:var(--accent)}
+.ent{font-family:var(--mono);font-size:.8rem;line-height:1.4}
+.ent b{font-family:var(--display)}
+.ent .no{color:var(--muted)}
+.traits{display:flex;flex-wrap:wrap;gap:4px}
+.emas{display:flex;gap:12px;align-items:center;font-size:.82rem}
+.findings{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;max-width:none}
+.findings h2{font-size:1rem;margin:0 0 6px}
+.findings ul{margin:0;padding-left:18px;line-height:1.5;font-size:.9rem}
+.empty{color:var(--muted);padding:20px 0}
+@media (max-width:720px){.trade{grid-template-columns:1fr}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Manan Trade Study</h1>
+    <p class="sub">78 NSE cash trades taken by Manan Arora (Jan–Oct 2026). Each chart opens on the day before his trade with the future hidden. Read the setup, then step forward to see where PP VOL and RVOL → HOD would have entered. No exits are modelled. Futures and very new listings are excluded.</p>
+  </header>
+  <section class="findings">
+    <h2>What his setups have in common (day before the trade)</h2>
+    <ul>
+      <li>Uptrend: close above the 50 EMA in 97% of trades; EMA 10 &gt; 21 &gt; 50 in 82%.</li>
+      <li>Pulled back to support, not extended: close within 3% of the 21 EMA in 70% (median +1.3%), median +0.4% from the 10 EMA.</li>
+      <li>A prior leader: median +20% over 3 months, median 9% below the 60-day high.</li>
+      <li>Quiet before the move: last-5-day volume below the 50-day average in 73% (median 0.69×); ATR contracting in 62%.</li>
+      <li>Trade day: small open (gap within ±1% in 85%), then a volume expansion day, median RVOL 155% and median +4% close.</li>
+      <li>Your entries: PP VOL fired on 30 of 78, RVOL → HOD on 7, at least one on 33. RVOL mostly misses because opening volume stays under 9% by 09:26; PP VOL mostly misses because the third pivot is under 4× its volume EMA or under 90% of PP1.</li>
+    </ul>
+  </section>
+  <div class="stats" id="stats"></div>
+  <div class="bar" role="group" aria-label="Filter trades">
+    <button class="chip" id="f-all" aria-pressed="true" data-f="all">All</button>
+    <button class="chip" id="f-pp" aria-pressed="false" data-f="pp">PP VOL entry</button>
+    <button class="chip" id="f-rv" aria-pressed="false" data-f="rv">RVOL entry</button>
+    <button class="chip" id="f-none" aria-pressed="false" data-f="none">No entry</button>
+    <label for="sort" style="margin-left:auto;font-size:.82rem;color:var(--muted)">Sort</label>
+    <select id="sort"><option value="date">Trade date</option><option value="sym">Symbol</option></select>
+  </div>
+  <div class="legend">
+    <span class="emas" role="group" aria-label="Show moving averages">
+      <label><input type="checkbox" id="em10" checked> <i style="background:var(--e10)"></i>EMA 10</label>
+      <label><input type="checkbox" id="em21" checked> <i style="background:var(--e21)"></i>EMA 21</label>
+      <label><input type="checkbox" id="em50" checked> <i style="background:var(--e50)"></i>EMA 50</label>
+    </span>
+    <span><i style="background:var(--accent);opacity:.3;height:10px"></i>Manan's trade day</span>
+    <span><i style="background:var(--pp)"></i>PP VOL entry</span>
+    <span><i style="background:var(--rv)"></i>RVOL entry</span>
+    <span><i style="background:var(--dot);height:8px;width:8px;border-radius:50%"></i>Contraction dot</span>
+  </div>
+  <div class="list" id="list"></div>
+</div>
+
+<script>
+const T = __DATA__;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let filt = "all", sortBy = "date";
+const fmt = (x, d=2) => x == null ? "–" : Number(x).toFixed(d);
+const tvLink = s => "https://www.tradingview.com/chart/?symbol=" + encodeURIComponent("NSE:" + s) + "&interval=D";
+const show = {e10: true, e21: true, e50: true};
+const CUR = new Map();
+const key = t => t.sym + "|" + t.date;
+const tradeIdx = t => t.d.indexOf(t.date);
+const startIdx = t => Math.max(0, tradeIdx(t) - 1);
+const curOf = t => CUR.has(key(t)) ? CUR.get(key(t)) : startIdx(t);
+
+function chart(t, cur){
+  const W = 760, H = 240, padL = 6, padR = 56, padT = 16, padB = 22, n = t.d.length;
+  const lo = Math.min(...t.l) * 0.99, hi = Math.max(...t.h) * 1.01;
+  const y = v => padT + (hi - v) / (hi - lo) * (H - padT - padB);
+  const step = (W - padL - padR) / n, bw = Math.max(2, step * 0.6);
+  const x = i => padL + step * i + step / 2;
+  const C = k => css(k);
+  let g = "";
+  for (let k = 0; k <= 4; k++){ const v = lo + (hi - lo) * k / 4;
+    g += `<line x1="${padL}" x2="${W-padR}" y1="${y(v)}" y2="${y(v)}" stroke="${C("--line")}" stroke-width="1"/><text x="${W-padR+4}" y="${y(v)+3}">${fmt(v, v<100?2:0)}</text>`; }
+  const iT = tradeIdx(t);
+  if (iT >= 0 && iT <= cur) g += `<rect x="${x(iT)-step/2}" y="${padT}" width="${step}" height="${H-padT-padB}" fill="${C("--accent")}" opacity="0.14"/>`;
+  if (cur < n-1) g += `<rect x="${x(cur)+step/2}" y="${padT}" width="${W-padR-(x(cur)+step/2)}" height="${H-padT-padB}" fill="${C("--line")}" opacity="0.35"/><text x="${(x(cur)+step/2+W-padR)/2}" y="${H/2}" text-anchor="middle">future hidden, drag right</text>`;
+  for (let i = 0; i <= cur; i++){ const c = t.c[i] >= t.o[i] ? C("--up") : C("--down");
+    g += `<line x1="${x(i)}" x2="${x(i)}" y1="${y(t.h[i])}" y2="${y(t.l[i])}" stroke="${c}" stroke-width="1"/>`;
+    const top = y(Math.max(t.o[i], t.c[i])), bh = Math.max(1, Math.abs(y(t.o[i]) - y(t.c[i])));
+    g += `<rect x="${x(i)-bw/2}" y="${top}" width="${bw}" height="${bh}" fill="${c}"/>`; }
+  for (const [k, col] of [["e10","--e10"],["e21","--e21"],["e50","--e50"]])
+    if (show[k]) g += `<polyline fill="none" stroke="${C(col)}" stroke-width="1.4" points="${t[k].slice(0,cur+1).map((v,i)=>x(i)+","+y(v)).join(" ")}"/>`;
+  (t.dots || []).forEach(dd => { const i = t.d.indexOf(dd); if (i >= 0 && i <= cur) g += `<circle cx="${x(i)}" cy="${y(t.h[i])-8}" r="3.5" fill="${C("--dot")}"/>`; });
+  if (iT >= 0 && iT <= cur){
+    if (t.pp_entry != null) g += `<line x1="${x(iT)-step*1.2}" x2="${x(iT)+step*1.2}" y1="${y(t.pp_entry)}" y2="${y(t.pp_entry)}" stroke="${C("--pp")}" stroke-width="2"/><path d="M${x(iT)+step*1.4},${y(t.pp_entry)} l7,-5 v10 z" fill="${C("--pp")}"/>`;
+    if (t.rvol_entry != null) g += `<line x1="${x(iT)-step*1.2}" x2="${x(iT)+step*1.2}" y1="${y(t.rvol_entry)}" y2="${y(t.rvol_entry)}" stroke="${C("--rv")}" stroke-width="2" stroke-dasharray="3 2"/><path d="M${x(iT)-step*1.4},${y(t.rvol_entry)} l-7,-5 v10 z" fill="${C("--rv")}"/>`;
+  }
+  const lbl = i => `<text x="${x(i)}" y="${H-6}" text-anchor="middle">${t.d[i].slice(5)}</text>`;
+  [0, iT, cur].filter((v,i,a)=>v>=0 && v<=cur && a.indexOf(v)===i).forEach(i => g += lbl(i));
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${t.sym} daily candles around ${t.date}">${g}</svg>`;
+}
+
+const yes = b => b === true || b === "True";
+function traits(t){
+  if (t.stack == null) return "";
+  const list = [["EMA 10>21>50", yes(t.stack)], ["above EMA 50", yes(t.above50)], ["near EMA 21 (±3%)", Math.abs(t.d21) <= 3],
+    ["3-mo leader (>15%)", t.roc63 > 15], ["volume dry-up", t.vol_dry < 1], ["ATR contracting", t.atr_ratio < 1],
+    ["inside day", yes(t.inside)], ["NR7", yes(t.nr7)], ["contraction dot", yes(t.dot3)]];
+  return `<div class="traits">${list.map(([k,v])=>`<span class="tag ${v?"on":""}">${k}</span>`).join("")}</div>`;
+}
+function entries(t){
+  const pp = t.pp_entry != null ? `<b style="color:var(--pp)">PP VOL</b> ${t.pp_time} @ ${fmt(t.pp_entry)} · SL ${fmt(t.pp_stop_pct,1)}%`
+    : `<b class="no">PP VOL</b> <span class="no">${t.pp_block || t.note || "–"}</span>`;
+  const rv = t.rvol_entry != null ? `<b style="color:var(--rv)">RVOL</b> ${t.rvol_time} @ ${fmt(t.rvol_entry)} · RVOL ${fmt(t.rvol_at,0)}% · SL ${fmt(t.rvol_stop_pct,1)}%`
+    : `<b class="no">RVOL</b> <span class="no">${t.rvol_block ? t.rvol_block.replace("_"," ").toLowerCase() : (t.note || "–")}</span>`;
+  return `<div class="ent">${pp}<br>${rv}</div>`;
+}
+
+function render(){
+  let rows = T.filter(t => filt==="all" || (filt==="pp"&&t.pp_entry!=null) || (filt==="rv"&&t.rvol_entry!=null) || (filt==="none"&&t.pp_entry==null&&t.rvol_entry==null));
+  rows.sort(sortBy==="sym" ? (a,b)=>a.sym.localeCompare(b.sym)||a.date.localeCompare(b.date) : (a,b)=>a.date.localeCompare(b.date)||a.sym.localeCompare(b.sym));
+  const pp = rows.filter(t=>t.pp_entry!=null).length, rv = rows.filter(t=>t.rvol_entry!=null).length, any = rows.filter(t=>t.pp_entry!=null||t.rvol_entry!=null).length;
+  document.getElementById("stats").innerHTML = [[rows.length,"trades shown"],[pp,"PP VOL entries"],[rv,"RVOL entries"],[any,"at least one entry"]]
+    .map(([v,k])=>`<div class="stat"><b>${v}</b><span>${k}</span></div>`).join("");
+  document.getElementById("list").innerHTML = rows.length ? rows.map(t => `
+    <article class="trade ${t.pp_entry!=null||t.rvol_entry!=null?"win":""}">
+      <div class="facts">
+        <div class="sym">${t.symbol}<span class="r" style="font-size:.85rem;color:var(--muted)">${t.date}</span></div>
+        ${entries(t)}
+        <dl>
+          <dt>Prev close vs EMA 10 / 21</dt><dd>${fmt(t.d10,1)}% / ${fmt(t.d21,1)}%</dd>
+          <dt>3-mo / 1-mo move</dt><dd>${fmt(t.roc63,0)}% / ${fmt(t.roc20,0)}%</dd>
+          <dt>Below 60-day high</dt><dd>${fmt(t.off_hi60,1)}%</dd>
+          <dt>Vol 5d ÷ 50d · ATR5 ÷ 20</dt><dd>${fmt(t.vol_dry)} · ${fmt(t.atr_ratio)}</dd>
+          <dt>Trade day gap / close</dt><dd>${fmt(t.gap,1)}% / ${fmt(t.day_chg,1)}%</dd>
+          <dt>Trade day volume vs 21d</dt><dd>${fmt(t.day_rvol,0)}%</dd>
+        </dl>
+        ${traits(t)}
+        <a class="tv" href="${tvLink(t.sym)}" target="_blank" rel="noopener">Open ${t.symbol} on TradingView ↗</a>
+      </div>
+      <div class="chart" data-k="${key(t)}">
+        <div class="svgbox">${chart(t, curOf(t))}</div>
+        <div class="replay">
+          <button type="button" data-act="start" title="Back to the day before the trade">Setup</button>
+          <button type="button" data-act="-1" aria-label="One day back">◀</button>
+          <input type="range" min="0" max="${t.d.length-1}" value="${curOf(t)}" aria-label="Reveal candles up to day" id="r-${t.sym}-${t.date}">
+          <button type="button" data-act="1" aria-label="One day forward">▶</button>
+          <button type="button" data-act="all">Show all</button>
+          <span class="day">${t.d[curOf(t)]} · day before</span>
+        </div>
+      </div>
+    </article>`).join("") : `<p class="empty">No trades match this filter.</p>`;
+}
+const byKey = k => T.find(t => key(t) === k);
+function tagOf(t, v){ const iT = tradeIdx(t); return v === iT ? " · trade day" : v === iT - 1 ? " · day before" : ""; }
+function setCur(box, v){
+  const t = byKey(box.dataset.k); v = Math.max(0, Math.min(t.d.length-1, v));
+  CUR.set(key(t), v);
+  box.querySelector(".svgbox").innerHTML = chart(t, v);
+  box.querySelector("input[type=range]").value = v;
+  box.querySelector(".day").textContent = t.d[v] + tagOf(t, v);
+}
+const list = document.getElementById("list");
+list.addEventListener("input", e => { const box = e.target.closest(".chart"); if (box && e.target.type==="range") setCur(box, +e.target.value); });
+list.addEventListener("click", e => { const b = e.target.closest(".replay button"); if (!b) return;
+  const box = b.closest(".chart"), t = byKey(box.dataset.k), a = b.dataset.act;
+  setCur(box, a==="start" ? startIdx(t) : a==="all" ? t.d.length-1 : curOf(t) + (+a)); });
+let drag = null;
+list.addEventListener("pointerdown", e => { const svg = e.target.closest(".svgbox svg"); if (!svg) return;
+  const box = svg.closest(".chart"), t = byKey(box.dataset.k);
+  drag = {box, x0: e.clientX, c0: curOf(t), px: svg.getBoundingClientRect().width / t.d.length};
+  try { svg.setPointerCapture(e.pointerId); } catch (_) {} });
+list.addEventListener("pointermove", e => { if (drag) setCur(drag.box, drag.c0 + Math.round((e.clientX - drag.x0) / drag.px)); });
+["pointerup","pointercancel"].forEach(ev => list.addEventListener(ev, () => drag = null));
+list.addEventListener("keydown", e => { const box = e.target.closest(".chart"); if (!box || e.target.type==="range") return;
+  if (e.key==="ArrowRight"||e.key==="ArrowLeft"){ e.preventDefault(); setCur(box, curOf(byKey(box.dataset.k)) + (e.key==="ArrowRight"?1:-1)); } });
+["10","21","50"].forEach(n => document.getElementById("em"+n).addEventListener("change", e => { show["e"+n] = e.target.checked; render(); }));
+document.querySelectorAll(".chip").forEach(b => b.addEventListener("click", () => {
+  filt = b.dataset.f; document.querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", x===b)); render(); }));
+document.getElementById("sort").addEventListener("change", e => { sortBy = e.target.value; render(); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+new MutationObserver(render).observe(document.documentElement, {attributes:true, attributeFilter:["data-theme"]});
+render();
+</script>
