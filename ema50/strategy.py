@@ -28,15 +28,22 @@ class P:
     max_sl: float = 0.02
     exit_buf: float = 0.01
     tight_k: float = 0.7
+    ma: str = "sma"            # "sma" or "ema" for 10/20/21/50
+    min_tv: float = 20.0       # 30d avg traded value, Cr
+    stack: bool = True         # wait for MA10 > MA20 > MA50 after the reclaim
+    stack_within: int = 15     # sessions after setup to reach the stack
     min_gain: float = 4.0
     adr_k: float = 1.5
 
 
-def features(d: pd.DataFrame) -> pd.DataFrame:
+def features(d: pd.DataFrame, ma: str = "sma") -> pd.DataFrame:
     d = d.sort_values(["symbol", "date"]).copy()
     g = d.groupby("symbol", group_keys=False)
     for n in (10, 20, 21, 50):
-        d[f"e{n}"] = g.close.transform(lambda s: s.ewm(span=n, adjust=False).mean())
+        if ma == "sma":
+            d[f"e{n}"] = g.close.transform(lambda s, n=n: s.rolling(n).mean())
+        else:
+            d[f"e{n}"] = g.close.transform(lambda s, n=n: s.ewm(span=n, adjust=False).mean())
     d["pc"] = g.close.shift(1)
     d["hl"] = d.high / d.low - 1
     d["tv"] = d.close * d.volume
@@ -56,7 +63,7 @@ def setups(d: pd.DataFrame, p: P) -> pd.DataFrame:
     x = pd.concat([d, prev], axis=1)
     gain = (x.close / x.pc - 1) * 100
     rng = (x.high - x.low).replace(0, np.nan)
-    ok = ((x.p_mcap > 1500) & (x.p_close > 20) & (x.p_tv30 > 25) &
+    ok = ((x.p_mcap > 1500) & (x.p_close > 20) & (x.p_tv30 > p.min_tv) &
           (x.p_close < x.p_e10) & (x.p_close < x.p_e20) & (x.p_close < x.p_e50) & (x.p_b50_15 >= 10) &
           ((x.close > x.e50) | (x.high >= x.e50)) &
           ((gain >= p.min_gain) | (gain >= p.adr_k * x.adr)) &
@@ -64,13 +71,21 @@ def setups(d: pd.DataFrame, p: P) -> pd.DataFrame:
     return x[ok][["symbol", "sid", "date"]]
 
 
-def candidate_days(d, st):
-    """(symbol, sid, setup_date, trade_date, k) for k = 1..3 sessions after setup."""
+def candidate_days(d, st, p=None):
+    """(symbol, sid, setup_date, trade_date, k): k = 1..3 sessions after the ready day
+    (ready = setup day, or with p.stack the first close within p.stack_within sessions
+    where MA10 > MA20 > MA50)."""
     out = []
     for s, grp in d.groupby("symbol"):
         dates = list(grp.date)
+        stk = list((grp.e10 > grp.e20) & (grp.e20 > grp.e50))
         for r in st[st.symbol == s].itertuples():
             i = dates.index(r.date)
+            if p is not None and p.stack:
+                ready = [j for j in range(i, min(i + p.stack_within + 1, len(dates))) if stk[j]]
+                if not ready:
+                    continue
+                i = ready[0]
             for k in (1, 2, 3):
                 if i + k < len(dates):
                     out.append((s, r.sid, r.date, dates[i + k], k))
