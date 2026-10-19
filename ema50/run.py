@@ -15,20 +15,20 @@ def load(p=P()):
     return features(d, p.ma)
 
 
-def scan(p=P()):
+def scan(p=P(), tag=""):
     d = load(p)
     st = setups(d, p)
     st = st[(st.date >= T0) & (st.date <= T1)]
-    st.to_csv(D + "setups.csv", index=False)
+    st.to_csv(D + f"setups{tag}.csv", index=False)
     c = candidate_days(d, st, p)
-    c.to_csv(D + "candidates.csv", index=False)
+    c.to_csv(D + f"candidates{tag}.csv", index=False)
     print(len(st), "setups;", len(c), "candidate days;", st.symbol.nunique(), "symbols")
 
 
-def test(p=P(), quiet=False):
+def test(p=P(), quiet=False, tag=""):
     d = load(p).set_index(["symbol", "date"]).sort_index()
-    st = pd.read_csv(D + "setups.csv", parse_dates=["date"]); st["date"] = st.date.dt.date
-    c = pd.read_csv(D + "candidates.csv", parse_dates=["setup", "date"])
+    st = pd.read_csv(D + f"setups{tag}.csv", parse_dates=["date"]); st["date"] = st.date.dt.date
+    c = pd.read_csv(D + f"candidates{tag}.csv", parse_dates=["setup", "date"])
     c["setup"], c["date"] = c.setup.dt.date, c.date.dt.date
     m = pd.read_csv(D + "minutes.csv", parse_dates=["ts"]); m["day"] = m.ts.dt.date
     mins = dict(tuple(m.groupby(["symbol", "day"])))
@@ -52,7 +52,7 @@ def test(p=P(), quiet=False):
                 trades.append(res)
             break
     t = pd.DataFrame(trades)
-    t.to_csv(D + "trades.csv", index=False)
+    t.to_csv(D + f"trades{tag}.csv", index=False)
     if not quiet:
         print("skips:", skipped)
     return t

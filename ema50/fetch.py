@@ -42,20 +42,23 @@ def daily(shares_json):
 
 def minutes():
     h = load_env()
-    cand = pd.read_csv(OUT / "candidates.csv")      # symbol,sid,date
+    cand = pd.concat([pd.read_csv(f) for f in OUT.glob("candidates*.csv")]).drop_duplicates(["symbol", "date"])
     rows = []
     for i, r in enumerate(cand.itertuples()):
         d = r.date
         try:
             j = _post(h, "/charts/intraday", {"securityId": str(r.sid), "exchangeSegment": "NSE_EQ",
-                      "instrument": "EQUITY", "interval": "1", "fromDate": f"{d} 09:15:00",
+                      "instrument": "EQUITY", "interval": "1", "fromDate": f"{d} 09:00:00",
                       "toDate": f"{d} 15:30:00"}, pace=0.21)
         except RuntimeError as e:
             print(r.symbol, d, e); continue
         for k, ts in enumerate(j.get("timestamp", [])):
             rows.append((r.symbol, _ist(ts), j["open"][k], j["high"][k], j["low"][k], j["close"][k], j["volume"][k]))
         if i % 100 == 0: print(i, flush=True)
-    pd.DataFrame(rows, columns=["symbol", "ts", "open", "high", "low", "close", "volume"]).to_csv(OUT / "minutes.csv", index=False)
+    df = pd.DataFrame(rows, columns=["symbol", "ts", "open", "high", "low", "close", "volume"])
+    first = df.groupby([df.symbol, pd.to_datetime(df.ts).dt.date]).ts.min().astype(str).str[11:16]
+    print("first-bar times:", first.value_counts().head(3).to_dict())
+    df.to_csv(OUT / "minutes.csv", index=False)
 
 
 if __name__ == "__main__":
