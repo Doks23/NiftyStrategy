@@ -9,8 +9,8 @@ D = "data_eq/"
 T0, T1 = date(2026, 1, 1), date(2026, 9, 30)
 
 
-def load(p=P()):
-    d = pd.read_csv(D + "daily.csv", parse_dates=["date"])
+def load(p=P(), daily="daily.csv"):
+    d = pd.read_csv(D + daily, parse_dates=["date"])
     d["date"] = d.date.dt.date
     return features(d, p.ma)
 
@@ -25,12 +25,12 @@ def scan(p=P(), tag=""):
     print(len(st), "setups;", len(c), "candidate days;", st.symbol.nunique(), "symbols")
 
 
-def test(p=P(), quiet=False, tag=""):
-    d = load(p).set_index(["symbol", "date"]).sort_index()
+def test(p=P(), quiet=False, tag="", daily="daily.csv", minutes="minutes.csv"):
+    d = load(p, daily).set_index(["symbol", "date"]).sort_index()
     st = pd.read_csv(D + f"setups{tag}.csv", parse_dates=["date"]); st["date"] = st.date.dt.date
     c = pd.read_csv(D + f"candidates{tag}.csv", parse_dates=["setup", "date"])
     c["setup"], c["date"] = c.setup.dt.date, c.date.dt.date
-    m = pd.read_csv(D + "minutes.csv", parse_dates=["ts"]); m["day"] = m.ts.dt.date
+    m = pd.read_csv(D + minutes, parse_dates=["ts"]); m["day"] = m.ts.dt.date
     mins = dict(tuple(m.groupby(["symbol", "day"])))
     trades, skipped = [], {"no_min": 0, "not_tight": 0, "no_trigger": 0}
     for (sym, setup), grp in c.groupby(["symbol", "setup"]):
