@@ -30,6 +30,7 @@ class P:
     tight_k: float = 0.7
     ma: str = "sma"            # "sma" or "ema" for 10/20/21/50
     min_tv: float = 20.0       # 30d avg traded value, Cr
+    strict_down: bool = True   # T-1: MA10 < MA20 < MA50 and MA50 falling vs 10 sessions ago
     stack: bool = True         # wait for MA10 > MA20 > MA50 after the reclaim
     stack_within: int = 15     # sessions after setup to reach the stack
     min_gain: float = 4.0
@@ -54,12 +55,13 @@ def features(d: pd.DataFrame, ma: str = "sma") -> pd.DataFrame:
     d["below50"] = (d.close < d.e50).astype(int)
     d["b50_15"] = g.below50.transform(lambda s: s.rolling(15).sum())
     d["mcap"] = d.shares_cr * d.close
+    d["e50_10"] = g.e50.shift(10)
     return d
 
 
 def setups(d: pd.DataFrame, p: P) -> pd.DataFrame:
     g = d.groupby("symbol")
-    prev = g[["close", "e10", "e20", "e50", "b50_15", "mcap", "tv30"]].shift(1).add_prefix("p_")
+    prev = g[["close", "e10", "e20", "e50", "e50_10", "b50_15", "mcap", "tv30"]].shift(1).add_prefix("p_")
     x = pd.concat([d, prev], axis=1)
     gain = (x.close / x.pc - 1) * 100
     rng = (x.high - x.low).replace(0, np.nan)
@@ -68,6 +70,8 @@ def setups(d: pd.DataFrame, p: P) -> pd.DataFrame:
           ((x.close > x.e50) | (x.high >= x.e50)) &
           ((gain >= p.min_gain) | (gain >= p.adr_k * x.adr)) &
           ((x.close - x.low) / rng >= 0.75) & (x.volume >= 1.5 * x.av21))
+    if p.strict_down:
+        ok &= (x.p_e10 < x.p_e20) & (x.p_e20 < x.p_e50) & (x.p_e50 < x.p_e50_10)
     return x[ok][["symbol", "sid", "date"]]
 
 
