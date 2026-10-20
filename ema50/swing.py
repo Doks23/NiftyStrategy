@@ -4,10 +4,10 @@ import math, sys
 import numpy as np, pandas as pd
 from .strategy import features, charges, P
 
-def run(p=P(), entry="open", max_sl=0.08, wait=1, kron=None, thr=None):
-    d = features(pd.read_csv("data_eq/daily_ck.csv", parse_dates=["date"]).assign(), "sma")
+def run(p=P(), entry="open", max_sl=0.08, wait=1, kron=None, thr=None, daily="daily_ck.csv", setups="setups_ck.csv"):
+    d = features(pd.read_csv("data_eq/" + daily, parse_dates=["date"]).assign(), "sma")
     d["date"] = pd.to_datetime(d.date).dt.date
-    st = pd.read_csv("data_eq/setups_ck.csv", parse_dates=["date"]).drop_duplicates(["symbol", "date"]); st["date"] = st.date.dt.date
+    st = pd.read_csv("data_eq/" + setups, parse_dates=["date"]).drop_duplicates(["symbol", "date"]); st["date"] = st.date.dt.date
     out = []
     for r in st.itertuples():
         x = d[d.symbol == r.symbol].reset_index(drop=True); ix = x.index[x.date == r.date]
