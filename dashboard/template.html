@@ -1,0 +1,229 @@
+<title>NSE 50 MA Pop Backtest</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+/* Layout: one long research sheet. Summary strip, equity curve, trade explorer (table + candles), Kronos panel. */
+:root{
+  --bg:#f5f6f8; --panel:#ffffff; --fg:#14181f; --muted:#5b6572; --line:#dfe3e9; --accent:#0b6e7f; --accent-soft:#e1f1f4;
+  --gain:#1b7f3b; --loss:#c8332b; --warn:#a15c00; --grid:#e9ecf0; --sma21:#b7791f; --sma50:#6b4fbb;
+  --font-body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif; --font-data:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1216; --panel:#171b21; --fg:#e8ebef; --muted:#97a1ae; --line:#2a313a; --accent:#4cc3d6; --accent-soft:#12303a;
+  --gain:#4cc57a; --loss:#f07a70; --warn:#e0a13c; --grid:#222830; --sma21:#e0a13c; --sma50:#a592ec; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1216; --panel:#171b21; --fg:#e8ebef; --muted:#97a1ae; --line:#2a313a; --accent:#4cc3d6; --accent-soft:#12303a;
+  --gain:#4cc57a; --loss:#f07a70; --warn:#e0a13c; --grid:#222830; --sma21:#e0a13c; --sma50:#a592ec; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:14px;line-height:1.5;
+  padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+h1{font-size:22px;font-weight:600;margin:0;text-wrap:balance;letter-spacing:-.01em}
+h2{font-size:15px;font-weight:600;margin:0 0 2px}
+p{margin:0}.muted{color:var(--muted)}
+.num{font-family:var(--font-data);font-variant-numeric:tabular-nums}
+.gain{color:var(--gain)}.loss{color:var(--loss)}
+header{display:flex;flex-direction:column;gap:6px}
+.sub{max-width:70ch;color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;background:var(--panel);overflow:hidden;align-self:flex-start;flex-wrap:wrap}
+.seg button{font:inherit;color:var(--muted);background:none;border:0;padding:7px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+button:focus-visible,input:focus-visible,.row:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.stat{background:var(--panel);padding:10px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.stat span{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.stat b{font-family:var(--font-data);font-weight:500;font-size:18px;font-variant-numeric:tabular-nums}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.chart{width:100%;height:260px}
+.explorer{display:grid;grid-template-columns:minmax(300px,380px) minmax(0,1fr);gap:14px}
+@media(max-width:860px){.explorer{grid-template-columns:1fr}}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tools input{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 10px;width:130px}
+.list{max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:6px}
+.row{display:grid;grid-template-columns:1fr 74px 78px;gap:10px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--line);cursor:pointer;width:100%;background:none;border-left:0;border-right:0;border-top:0;font:inherit;color:inherit;text-align:left}
+.row:hover{background:var(--bg)}
+.row[aria-selected="true"]{background:var(--accent-soft)}
+.row>span:nth-child(n+2),.thead button:nth-child(n+2){text-align:right}
+.row small{display:block;color:var(--muted);font-size:11px}
+.chip{font-size:11px;padding:1px 7px;border-radius:10px;border:1px solid var(--line);color:var(--muted);font-family:var(--font-data)}
+.thead{display:grid;grid-template-columns:1fr 74px 78px;gap:10px;padding:6px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel)}
+.thead button{font:inherit;text-transform:inherit;letter-spacing:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+.detail{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px}
+.detail div{display:flex;gap:6px}.detail span{color:var(--muted)}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.legend i{display:inline-block;width:14px;height:0;border-top:2px solid;vertical-align:middle;margin-right:5px}
+.kron{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:18px}
+@media(max-width:860px){.kron{grid-template-columns:1fr}}
+.bars{display:flex;flex-direction:column;gap:9px}
+.bar{display:grid;grid-template-columns:78px 1fr 64px;gap:10px;align-items:center;font-size:12px}
+.track{position:relative;height:16px;background:var(--bg);border-radius:3px}
+.fill{position:absolute;top:0;bottom:0;border-radius:3px}
+.gb{background:var(--gain)}.lb{background:var(--loss)}
+.base{position:absolute;top:-3px;bottom:-3px;border-left:2px dashed var(--muted)}
+.note{border-left:3px solid var(--accent);padding:2px 0 2px 12px;max-width:62ch}
+footer{color:var(--muted);font-size:12px;max-width:80ch}
+@media(prefers-reduced-motion:no-preference){.row{transition:background .12s}}
+</style>
+
+<div class="wrap">
+<header>
+  <h1>50 MA pop on liquid NSE stocks</h1>
+  <p class="sub">Stocks in a downtrend that reclaim the 50-day average on a strong candle and volume, from your Chartink list. Backtest from 24 Feb to 16 Oct 2026, ₹1,500 risk per trade, 0.15% slippage per side, full Dhan delivery charges. Trades are replayed on daily candles.</p>
+  <div class="seg" role="group" aria-label="Entry method">
+    <button id="b-swing" aria-pressed="true">Swing: buy at close after the setup</button>
+    <button id="b-orb" aria-pressed="false">Opening range: first 11 minutes</button>
+  </div>
+</header>
+
+<section class="stats" id="stats" aria-label="Summary"></section>
+
+<section class="panel">
+  <div><h2>Equity curve</h2><p class="muted" id="eq-note">Cumulative net profit by exit date, in rupees.</p></div>
+  <div class="chart" id="eq"></div>
+</section>
+
+<section class="explorer">
+  <div class="panel">
+    <div><h2>Trades</h2><p class="muted" id="count"></p></div>
+    <div class="tools">
+      <div class="seg" role="group" aria-label="Filter">
+        <button data-f="all" aria-pressed="true">All</button><button data-f="win" aria-pressed="false">Winners</button><button data-f="loss" aria-pressed="false">Losers</button>
+      </div>
+      <input id="q" type="search" placeholder="Stock" aria-label="Search stock">
+    </div>
+    <div class="list" id="list" role="listbox" aria-label="Trades">
+      <div class="thead"><button data-s="date">Stock / entry</button><button data-s="r">R</button><button data-s="pnl">P&amp;L</button></div>
+      <div id="rows"></div>
+    </div>
+  </div>
+  <div class="panel">
+    <div><h2 id="t-title">Select a trade</h2><p class="muted" id="t-sub"></p></div>
+    <div class="detail num" id="t-detail"></div>
+    <div class="chart" id="cs" style="height:380px"></div>
+    <div class="legend"><span><i style="border-color:var(--sma21)"></i>21-day average</span><span><i style="border-color:var(--sma50)"></i>50-day average</span><span><i style="border-color:var(--accent);border-top-style:dashed"></i>Entry</span><span><i style="border-color:var(--loss);border-top-style:dashed"></i>Stop</span></div>
+  </div>
+</section>
+
+<section class="panel">
+  <div><h2>Did Kronos predict these trades?</h2><p class="muted">Kronos-small drew 30 possible 5-day futures for each setup. Bars show what the stock did next, grouped by how many of those futures pointed up.</p></div>
+  <div class="kron">
+    <div class="bars" id="kbars"></div>
+    <div class="note" id="knote"></div>
+  </div>
+</section>
+<footer>Candles end 16 Oct 2026. Open positions are marked at the last close. Past results from one market regime do not predict future results.</footer>
+</div>
+
+<script>
+/*DATA*/
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const inr = v => (v < 0 ? '−' : '') + '₹' + Math.abs(Math.round(v)).toLocaleString('en-IN');
+const sgn = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(2);
+const EXIT = {STOP:'Stopped out', BE:'Breakeven', EMA21:'Trailed out', OPEN:'Still open', OPEN_AT_END:'Still open', '4R_25%':'Target'};
+let ds = 'swing', filt = 'all', sortKey = 'date', sortDir = 1, sel = null, q = '';
+
+function stats(list){
+  const win = list.filter(t => t.pnl > 0), loss = list.filter(t => t.pnl <= 0);
+  const gp = win.reduce((a,t)=>a+t.pnl,0), gl = -loss.reduce((a,t)=>a+t.pnl,0);
+  const by = {}; list.forEach(t => by[t.xd] = (by[t.xd]||0) + t.pnl);
+  let cum = 0, peak = 0, dd = 0; Object.keys(by).sort().forEach(d => { cum += by[d]; peak = Math.max(peak, cum); dd = Math.min(dd, cum - peak); });
+  return {n:list.length, win:list.length ? 100*win.length/list.length : 0, net:list.reduce((a,t)=>a+t.pnl,0), fees:list.reduce((a,t)=>a+t.fee,0),
+    pf: gl ? gp/gl : 0, avgR: list.length ? list.reduce((a,t)=>a+t.r,0)/list.length : 0, dd, best: Math.max(...list.map(t=>t.pnl))};
+}
+function renderStats(){
+  const s = stats(TRADES[ds]);
+  const items = [['Trades', s.n],['Win rate', s.win.toFixed(1)+'%'],['Net profit', inr(s.net), s.net>=0?'gain':'loss'],['Charges paid', inr(s.fees)],
+    ['Profit factor', s.pf.toFixed(2)],['Average R', sgn(s.avgR), s.avgR>=0?'gain':'loss'],['Max drawdown', inr(s.dd), 'loss'],['Best trade', inr(s.best), 'gain']];
+  document.getElementById('stats').innerHTML = items.map(i => `<div class="stat"><span>${i[0]}</span><b class="${i[2]||''}">${i[1]}</b></div>`).join('');
+}
+
+/* charts */
+function baseOpts(){return {autoSize:true, layout:{background:{type:'solid',color:css('--panel')},textColor:css('--muted'),fontFamily:css('--font-data'),fontSize:11},
+  grid:{vertLines:{color:css('--grid')},horzLines:{color:css('--grid')}}, rightPriceScale:{borderColor:css('--line')}, timeScale:{borderColor:css('--line')},
+  crosshair:{mode:0}}}
+const eqChart = LightweightCharts.createChart(document.getElementById('eq'), baseOpts());
+const eqSeries = eqChart.addAreaSeries({lineWidth:2, priceFormat:{type:'custom',formatter:v=>inr(v)}});
+const csChart = LightweightCharts.createChart(document.getElementById('cs'), baseOpts());
+const cs = csChart.addCandlestickSeries({priceLineVisible:false});
+const s21 = csChart.addLineSeries({lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+const s50 = csChart.addLineSeries({lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+let lines = [];
+function theme(){
+  [eqChart, csChart].forEach(c => c.applyOptions(baseOpts()));
+  const g = css('--gain'), l = css('--loss');
+  eqSeries.applyOptions({lineColor:css('--accent'), topColor:css('--accent-soft'), bottomColor:css('--panel')});
+  cs.applyOptions({upColor:g,downColor:l,borderUpColor:g,borderDownColor:l,wickUpColor:g,wickDownColor:l});
+  s21.applyOptions({color:css('--sma21')}); s50.applyOptions({color:css('--sma50')});
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', theme);
+new MutationObserver(theme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+
+function sma(bars, n){const out=[];let s=0;for(let i=0;i<bars.length;i++){s+=bars[i][4];if(i>=n)s-=bars[i-n][4];if(i>=n-1)out.push({time:bars[i][0],value:+(s/n).toFixed(2)});}return out;}
+
+function renderEquity(){
+  const by = {}; TRADES[ds].forEach(t => by[t.xd] = (by[t.xd]||0) + t.pnl);
+  let cum = 0; const data = Object.keys(by).sort().map(d => ({time:d, value:Math.round(cum += by[d])}));
+  eqSeries.setData(data); eqChart.timeScale().fitContent();
+  document.getElementById('eq-note').textContent = ds==='swing'
+    ? 'Buy at the close after the setup day, stop at the setup low, trail on the 21-day average. Cumulative net profit by exit date.'
+    : 'Enter inside the first 11 minutes on 8% relative volume and a break of the opening range. Cumulative net profit by exit date.';
+}
+
+function visible(){
+  let l = TRADES[ds].map((t,i)=>({...t,i}));
+  if (filt==='win') l = l.filter(t=>t.pnl>0); if (filt==='loss') l = l.filter(t=>t.pnl<=0);
+  if (q) l = l.filter(t=>t.s.includes(q.toUpperCase()));
+  const key = sortKey==='date' ? (a=>a.en) : (a=>a[sortKey]);
+  l.sort((a,b)=> (key(a)>key(b)?1:key(a)<key(b)?-1:0) * sortDir);
+  return l;
+}
+function renderList(){
+  const l = visible();
+  document.getElementById('count').textContent = l.length + ' of ' + TRADES[ds].length + ' trades';
+  document.getElementById('rows').innerHTML = l.map(t => `<button class="row" role="option" data-i="${t.i}" aria-selected="${t.i===sel}">
+    <span><b>${t.s}</b><small class="num">${t.en} · ${EXIT[t.ex]||t.ex}</small></span><span class="num ${t.r>=0?'gain':'loss'}">${sgn(t.r)}R</span><span class="num ${t.pnl>=0?'gain':'loss'}">${inr(t.pnl)}</span></button>`).join('');
+}
+function showTrade(i){
+  sel = i; const t = TRADES[ds][i]; const bars = BARS[t.s];
+  document.getElementById('t-title').textContent = t.s;
+  document.getElementById('t-sub').textContent = `Setup ${t.su}, entry ${t.en}, ${EXIT[t.ex]||t.ex} ${t.xd===LAST&&t.ex.startsWith('OPEN')?'(marked at last close)':'on '+t.xd}`;
+  document.getElementById('t-detail').innerHTML = [['Entry','₹'+t.ep],['Stop','₹'+t.sl],['Shares',t.q],['Result',sgn(t.r)+'R'],['Net',inr(t.pnl)],['Charges',inr(t.fee)],
+    ['Kronos paths up', t.ku==null?'n/a':Math.round(t.ku*100)+'%']].map(x=>`<div><span>${x[0]}</span>${x[1]}</div>`).join('');
+  cs.setData(bars.map(b=>({time:b[0],open:b[1],high:b[2],low:b[3],close:b[4]})));
+  s21.setData(sma(bars,21)); s50.setData(sma(bars,50));
+  lines.forEach(l=>cs.removePriceLine(l)); lines = [
+    cs.createPriceLine({price:t.ep,color:css('--accent'),lineWidth:1,lineStyle:2,title:'Entry'}),
+    cs.createPriceLine({price:t.sl,color:css('--loss'),lineWidth:1,lineStyle:2,title:'Stop'})];
+  const win = t.pnl>=0, m = [
+    {time:t.su,position:'belowBar',shape:'circle',color:css('--muted'),text:'Setup'},
+    {time:t.en,position:'belowBar',shape:'arrowUp',color:css('--accent'),text:'Buy'},
+    {time:t.xd,position:'aboveBar',shape:'arrowDown',color:win?css('--gain'):css('--loss'),text:(EXIT[t.ex]||t.ex)+' '+sgn(t.r)+'R'}]
+    .sort((a,b)=>a.time<b.time?-1:a.time>b.time?1:0);
+  cs.setMarkers(m);
+  const idx = d => Math.max(0, bars.findIndex(b=>b[0]>=d));
+  const from = bars[Math.max(0, idx(t.su)-35)][0], to = bars[Math.min(bars.length-1, idx(t.xd)+12)][0];
+  csChart.timeScale().setVisibleRange({from,to});
+  renderList();
+}
+
+/* events */
+function setDs(k){ds=k;sel=null;['swing','orb'].forEach(x=>document.getElementById('b-'+x).setAttribute('aria-pressed',x===k));
+  renderStats();renderEquity();renderList();const l=visible();if(l.length)showTrade(l.slice().sort((a,b)=>b.r-a.r)[0].i);}
+document.getElementById('b-swing').onclick=()=>setDs('swing');document.getElementById('b-orb').onclick=()=>setDs('orb');
+document.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{filt=b.dataset.f;document.querySelectorAll('[data-f]').forEach(x=>x.setAttribute('aria-pressed',x===b));renderList();});
+document.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{if(sortKey===b.dataset.s)sortDir*=-1;else{sortKey=b.dataset.s;sortDir=sortKey==='date'?1:-1;}renderList();});
+document.getElementById('q').oninput=e=>{q=e.target.value.trim();renderList();};
+document.getElementById('rows').onclick=e=>{const r=e.target.closest('.row');if(r)showTrade(+r.dataset.i);};
+
+/* kronos */
+(function(){
+  const max = Math.max(...KRON.buckets.map(b=>Math.abs(b.f5)), KRON.base5) * 1.15, pos = v => 50 + 50*v/max;
+  document.getElementById('kbars').innerHTML = KRON.buckets.map(b=>{
+    const lo = Math.min(50,pos(b.f5)), w = Math.abs(pos(b.f5)-50);
+    return `<div class="bar"><span class="num">${b.b} up</span><div class="track" title="${b.n} setups"><div style="left:${lo}%;width:${w}%;" class="fill ${b.f5>=0?'gb':'lb'}"></div><div class="base" style="left:50%"></div></div><span class="num">${sgn(b.f5)}%</span></div>`;}).join('')
+    + `<p class="muted" style="font-size:12px">Average 5-day return after the setup, from the next open. ${KRON.n} setups. Baseline across all setups: ${sgn(KRON.base5)}%.</p>`;
+  document.getElementById('knote').innerHTML = `<p>The forecast and the real result barely move together: correlation <b class="num">${KRON.corr}</b>.</p><p style="margin-top:8px">The group with most futures pointing up did best, but the 50–80% group lost money, so the bars do not step upward. Treat it as noise.</p>`;
+})();
+theme(); setDs('swing');
+</script>
