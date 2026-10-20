@@ -18,7 +18,7 @@ def load_daily():
     f = features(d, "sma"); out = {}
     for s, g in f.groupby("symbol"):
         g = g.reset_index(drop=True)
-        out[s] = dict(date=list(g.date), open=g.open.values, high=g.high.values, low=g.low.values, close=g.close.values, s10=g.e10.values, s21=g.e21.values, s50=g.e50.values, adr=g.adr.values)
+        out[s] = dict(date=list(g.date), open=g.open.values, high=g.high.values, low=g.low.values, close=g.close.values, s10=g.e10.values, s21=g.e21.values, s50=g.e50.values, adr=g.adr.values, vol=g.volume.values)
     return out
 
 
@@ -44,6 +44,7 @@ def stop_price(tr, spec, d):
     e = tr["e"]
     if spec[0] == "clamp": s = min(max(tr["lod"], e * (1 - spec[2] / 100)), e * (1 - spec[1] / 100))
     elif spec[0] == "setup": s = max(tr["setup_low"], e * (1 - spec[1]))
+    elif spec[0] == "avwap": s = max(tr["avwap"][tr["i0"] - (1 if tr["la"] is not None else 0)] * (1 - spec[1]), e * 0.88)   # opening entries only know the PREVIOUS close
     else: s = e * (1 - max(0.01, spec[1] * d["adr"][tr["i0"]] / 100))
     return min(s, e * 0.99)
 
@@ -77,6 +78,7 @@ def sim(tr, v, D):
         hc = max(hc, c); tr_spec = v["trail"]
         if tr_spec:
             if tr_spec[0] == "atr": line = hc - tr_spec[1] * d["adr"][k] / 100 * c
+            elif tr_spec[0] == "avwap": line = tr["avwap"][k] * (1 - tr_spec[1])
             else: line = d[tr_spec[0].replace("sma", "s")][k] * (1 - tr_spec[1])
             if c < line: pend = True
         if v["tstop"] and k - i0 == v["tstop"][0] and c < e + v["tstop"][1] * R: pend = True
