@@ -19,7 +19,8 @@ op = pd.read_csv("data_eq/trades_ck.csv")
 op = op.rename(columns={"date": "entry_date", "r_mult": "r"}); op["exit_date"] = op.exit_when.astype(str).str[:10].replace({"open": "open"})
 op["entry_date"] = op.entry_date.astype(str).str[:10]
 trades = {"swing": pack(sw, "swing"), "orb": pack(op, "orb")}
-syms = sorted({t["s"] for v in trades.values() for t in v})
+EX = json.load(open("data_eq/kronos_examples.json"))
+syms = sorted({t["s"] for v in trades.values() for t in v} | {e["s"] for e in EX})
 bars = {}
 for s in syms:
     x = d[d.symbol == s]
@@ -38,5 +39,5 @@ a["b"] = pd.cut(a.up5, [-.01, .2, .5, .8, 1.01], labels=["≤20%", "20–50%", "
 kb = [dict(b=str(b), n=int(len(g)), f5=round(100 * g.r5.mean(), 2), w5=round(100 * (g.r5 > 0).mean(), 1), f10=round(100 * g.r10.mean(), 2)) for b, g in a.groupby("b", observed=True)]
 kron = dict(buckets=kb, n=len(a), corr=round(a.pred.corr(a.r5), 3), base5=round(100 * a.r5.mean(), 2))
 tpl = open("dashboard/template.html").read()
-html = tpl.replace("/*DATA*/", "const TRADES=%s;const BARS=%s;const KRON=%s;const LAST='%s';" % (json.dumps(trades, separators=(",", ":")), json.dumps(bars, separators=(",", ":")), json.dumps(kron), last))
+html = tpl.replace("/*DATA*/", "const TRADES=%s;const BARS=%s;const KRON=%s;const EX=%s;const LAST='%s';" % (json.dumps(trades, separators=(",", ":")), json.dumps(bars, separators=(",", ":")), json.dumps(kron), json.dumps(EX, separators=(",", ":")), last))
 open("dashboard/nse_dashboard.html", "w").write(html); print(len(html) / 1e6, "MB", len(syms), "symbols")

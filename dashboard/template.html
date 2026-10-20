@@ -105,6 +105,14 @@ footer{color:var(--muted);font-size:12px;max-width:80ch}
   </div>
 </section>
 
+<section class="panel" id="examples">
+  <div><h2>Kronos examples to check by hand</h2><p class="muted">Twelve setups where Kronos was very sure: bullish (at least 90% of its 30 futures up) or bearish (at most 10% up). The line is its median forecast from the setup-day close, the dotted lines are the middle 80% of its futures. The candles after the setup day are what really happened.</p></div>
+  <div id="ex-groups" style="display:flex;flex-direction:column;gap:8px"></div>
+  <div class="detail num" id="ex-detail"></div>
+  <div class="chart" id="exc" style="height:380px"></div>
+  <div class="legend"><span><i style="border-color:var(--accent)"></i>Kronos median forecast</span><span><i style="border-color:var(--accent);border-top-style:dotted"></i>Middle 80% of futures</span><span><i style="border-color:var(--muted);border-top-style:dashed"></i>Setup-day close</span></div>
+</section>
+
 <section class="panel">
   <div><h2>Did Kronos predict these trades?</h2><p class="muted">Kronos-small drew 30 possible 5-day futures for each setup. Bars show what the stock did next, grouped by how many of those futures pointed up.</p></div>
   <div class="kron">
@@ -216,6 +224,42 @@ document.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{if(sortKey===b.d
 document.getElementById('q').oninput=e=>{q=e.target.value.trim();renderList();};
 document.getElementById('rows').onclick=e=>{const r=e.target.closest('.row');if(r)showTrade(+r.dataset.i);};
 
+/* kronos examples */
+const exChart = LightweightCharts.createChart(document.getElementById('exc'), baseOpts());
+const ec = exChart.addCandlestickSeries({priceLineVisible:false});
+const fm = exChart.addLineSeries({lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+const f1 = exChart.addLineSeries({lineWidth:1,lineStyle:3,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+const f9 = exChart.addLineSeries({lineWidth:1,lineStyle:3,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+let exLine = null, exSel = 0;
+const _theme = theme;
+function exTheme(){ exChart.applyOptions(baseOpts()); const g=css('--gain'),l=css('--loss');
+  ec.applyOptions({upColor:g,downColor:l,borderUpColor:g,borderDownColor:l,wickUpColor:g,wickDownColor:l});
+  [fm,f1,f9].forEach(x=>x.applyOptions({color:css('--accent')})); }
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', exTheme);
+new MutationObserver(exTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+function showEx(i){
+  exSel = i; const e = EX[i], bars = BARS[e.s];
+  ec.setData(bars.map(b=>({time:b[0],open:b[1],high:b[2],low:b[3],close:b[4]})));
+  const line = arr => [{time:e.su,value:e.c0}].concat(e.fd.map((d,k)=>({time:d,value:arr[k]})));
+  fm.setData(line(e.med)); f1.setData(line(e.p10)); f9.setData(line(e.p90));
+  if (exLine) ec.removePriceLine(exLine);
+  exLine = ec.createPriceLine({price:e.c0,color:css('--muted'),lineWidth:1,lineStyle:2,title:'Setup close'});
+  ec.setMarkers([{time:e.su,position:'belowBar',shape:'circle',color:css('--muted'),text:'Setup'}]);
+  const k = bars.findIndex(b=>b[0]>=e.su);
+  exChart.timeScale().setVisibleRange({from:bars[Math.max(0,k-45)][0], to:e.fd[e.fd.length-1]});
+  const hit = (e.pred5>0) === (e.real5>0);
+  document.getElementById('ex-detail').innerHTML = [['Stock',e.s],['Setup day',e.su],['Futures pointing up',Math.round(e.up5*100)+'%'],
+    ['Kronos 5-day forecast',(e.pred5>0?'+':'')+e.pred5+'%'],['Actual 5-day move',(e.real5>0?'+':'')+e.real5+'%'],['Direction',hit?'Right':'Wrong']]
+    .map(x=>`<div><span>${x[0]}</span><b class="${x[0]==='Direction'?(hit?'gain':'loss'):''}">${x[1]}</b></div>`).join('');
+  document.querySelectorAll('.exbtn').forEach(b=>b.setAttribute('aria-pressed', +b.dataset.i===i));
+}
+(function(){
+  const groups = {}; EX.forEach((e,i)=>(groups[e.kind] = groups[e.kind]||[]).push(i));
+  document.getElementById('ex-groups').innerHTML = Object.keys(groups).map(k=>`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="muted" style="width:150px;font-size:12px">${k}</span><div class="seg">`
+    + groups[k].map(i=>`<button class="exbtn" data-i="${i}" aria-pressed="false">${EX[i].s} <span class="muted num" style="font-size:11px">${EX[i].su.slice(5)}</span></button>`).join('') + `</div></div>`).join('');
+  document.getElementById('ex-groups').onclick = ev => { const b = ev.target.closest('.exbtn'); if (b) showEx(+b.dataset.i); };
+})();
+
 /* kronos */
 (function(){
   const max = Math.max(...KRON.buckets.map(b=>Math.abs(b.f5)), KRON.base5) * 1.15, pos = v => 50 + 50*v/max;
@@ -225,5 +269,5 @@ document.getElementById('rows').onclick=e=>{const r=e.target.closest('.row');if(
     + `<p class="muted" style="font-size:12px">Average 5-day return after the setup, from the next open. ${KRON.n} setups. Baseline across all setups: ${sgn(KRON.base5)}%.</p>`;
   document.getElementById('knote').innerHTML = `<p>The forecast and the real result barely move together: correlation <b class="num">${KRON.corr}</b>.</p><p style="margin-top:8px">The group with most futures pointing up did best, but the 50–80% group lost money, so the bars do not step upward. Treat it as noise.</p>`;
 })();
-theme(); setDs('swing');
+theme(); exTheme(); showEx(0); setDs('swing');
 </script>
