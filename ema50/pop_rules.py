@@ -96,7 +96,7 @@ if __name__ == "__main__":
             if i % 150 == 0: flush(); print(i, flush=True)
         flush(); print("done")
     else:
-        c = pd.read_csv("data_eq/pop_candidates.csv", parse_dates=["setup", "date"]); c["setup"] = c.setup.dt.date
+        c = pd.read_csv("data_eq/pop_candidates.csv", parse_dates=["setup", "date"]); c["setup"] = c.setup.dt.date; c["date"] = c.date.dt.date
         m = pd.read_csv("data_eq/minutes_univ.csv", parse_dates=["ts"]).drop_duplicates(["symbol", "ts"]); m["day"] = m.ts.dt.normalize()
         mins = {k: g.sort_values("ts") for k, g in m.groupby(["symbol", "day"])}; p = P(); res = []; allt = {}
         for name, q in [("A only: T+1..T+2", 0), ("A + B after 2 quiet days", 2), ("A + B after 3 quiet days", 3)]:
