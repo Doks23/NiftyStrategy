@@ -76,3 +76,15 @@ Results (per lot, Rs 2L capital, Feb-2024..Oct-2026, 32-33 cycles; `data_export/
 
 Every adjustment variant loses; only the un-adjusted 3%-rule fly is positive, and it holds under 2-pt
 slippage (+40%) and Rs 3L/lot (+33%). It wins when expiry lands within +/-credit of ATM (53% of months).
+
+Regime filters on the un-adjusted fly (`python -m ironfly.fetch_vix && python -m ironfly.filters`;
+thresholds = trailing-1y percentiles known at entry; p = share of random same-size skips doing as well):
+
+    filter (skip month)                 total %  maxDD %  worst streak  p
+    none                                  +43.9    -21.5             7  -
+    VIX above 1y median                   +12.8    -12.1             2  0.72  (skips the best months)
+    VIX < 20d realised vol                +47.0    -14.0             4  0.09  (only one with signal; weak)
+    20d move in top quartile (trend)      +44.7    -16.2             3  0.19
+
+Max-loss cap (wing rule): 1.5% +21.7/-14.9 DD, 2% +28.8/-16.7, 3% +43.9/-21.5, 4% +52.0/-25.8,
+5% +56.0/-31.2 -> return/DD peaks around 3-4%; the video's 3% is a sound choice.
