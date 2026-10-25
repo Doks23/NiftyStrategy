@@ -63,6 +63,16 @@ Data caveats: EOD only (video enters 11-12 and uses intraday alerts; here entry,
 daily closes). Deep-ITM closes are stale, so ITM strikes are re-priced from the OTM twin via put-call parity
 on the same-expiry future. 1 pt slippage per option traded.
 
-Results (per lot, Rs 2L capital): 2026 (10 expiries Jan-Oct) base -5.7%, 5 stops; same fly with NO
-adjustments +26.3% (9 done + Oct open). Feb-2024..Oct-2026: base -11.7% over 33 cycles; no-adjust +43.9%
-over 32. See `data_export/ironfly_*`.
+Adjustment variants (`--adj-mode`): `roll` (video reading: threatened short -> old hedge strike, new hedge
+one wing out), `recenter` (close all, new 3%-rule fly at ATM), `untested` (move untested side to ATM).
+
+Results (per lot, Rs 2L capital, Feb-2024..Oct-2026, 32-33 cycles; `data_export/ironfly_sweep.txt`):
+
+    mode                total %  2026 %  maxDD %  stops
+    roll (video)          -11.7    -5.7    -31.5      9
+    recenter              -53.1   -15.7    -54.1      8
+    untested to ATM       -19.7    -9.9    -20.5      3
+    no adjustment         +43.9   +26.3    -21.5      0   (DD = 6 straight losses Feb-Jul 2025)
+
+Every adjustment variant loses; only the un-adjusted 3%-rule fly is positive, and it holds under 2-pt
+slippage (+40%) and Rs 3L/lot (+33%). It wins when expiry lands within +/-credit of ATM (53% of months).

@@ -118,14 +118,22 @@ def run_cycle(entry, expiry, days, spot, chain, units, a):
     # missing strike (thin far wing): fall back to intrinsic so MTM/close-out stay defined
     qq = lambda ch, k, t, S: v if not np.isnan(v := q(ch, k, t)) else max(S - k, 0) if t == "CE" else max(k - S, 0)
 
-    # 3% rule: widest wing whose max loss fits the budget
-    W, credit = None, None
-    for w in range(100, 2050, 50):
-        c = q(ch0, K, "CE") + q(ch0, K, "PE") - q(ch0, K + w, "CE") - q(ch0, K - w, "PE")
-        if np.isnan(c):
-            break
-        if (w - c) * units * a.lots <= a.maxloss * cap:
-            W, credit = w, c
+    def pick_wing(ch, K):
+        """3% rule: widest wing whose max loss fits the budget."""
+        W, credit = None, None
+        for w in range(100, 2050, 50):
+            c = q(ch, K, "CE") + q(ch, K, "PE") - q(ch, K + w, "CE") - q(ch, K - w, "PE")
+            if np.isnan(c):
+                break
+            if (w - c) * units * a.lots <= a.maxloss * cap:
+                W, credit = w, c
+        return W, credit
+
+    def atm(ch, S):
+        ks = np.array(sorted({k for k, _ in ch.index}))
+        return ks[np.argmin(np.abs(ks - S))]
+
+    W, credit = pick_wing(ch0, K)
     if W is None:
         return None
 
@@ -151,19 +159,43 @@ def run_cycle(entry, expiry, days, spot, chain, units, a):
         side = p.breached(S, units)
         if side and n_adj < a.max_adj:
             sgn = 1 if side == "CE" else -1
-            shorts = [k for (k, t), n in p.legs.items() if t == side and n < 0]
-            longs = [k for (k, t), n in p.legs.items() if t == side and n > 0]
-            ks = min(shorts, key=lambda k: abs(k - S)) if shorts else None
-            kl = min(longs, key=lambda k: sgn * k) if longs else None   # nearest hedge
-            if ks is None or kl is None or np.isnan(q(ch, kl + sgn * hedge, side)):
-                continue
-            new_short, new_long = kl, kl + sgn * hedge
-            p.trade(ks, side, a.lots, q(ch, ks, side), d, units, a.slip)                # buy back ITM short
-            p.trade(kl, side, -a.lots, q(ch, kl, side), d, units, a.slip)               # close old hedge
-            p.trade(new_short, side, -a.lots, q(ch, new_short, side), d, units, a.slip)  # short at old hedge
-            p.trade(new_long, side, a.lots, q(ch, new_long, side), d, units, a.slip)     # new deep-OTM hedge
+            if a.adj_mode == "recenter":
+                # close the whole position, open a fresh 3%-rule fly at the new ATM
+                K2 = atm(ch, S)
+                W2, _ = pick_wing(ch, K2)
+                if W2 is None:
+                    continue
+                for (k, t), n in list(p.legs.items()):
+                    p.trade(k, t, -n, qq(ch, k, t, S), d, units, a.slip)
+                for k, t, n in [(K2, "CE", -a.lots), (K2, "PE", -a.lots), (K2 + W2, "CE", a.lots), (K2 - W2, "PE", a.lots)]:
+                    p.trade(k, t, n, q(ch, k, t), d, units, a.slip)
+                log.append(f"{d:%m-%d} {side} S={S:.0f} recenter {K2} W{W2}")
+            elif a.adj_mode == "untested":
+                # move the profitable (untested) side's short + hedge to the new ATM, same width
+                u = "PE" if side == "CE" else "CE"
+                K2 = atm(ch, S)
+                if np.isnan(q(ch, K2 - sgn * W, u)):
+                    continue
+                for (k, t), n in list(p.legs.items()):
+                    if t == u:
+                        p.trade(k, t, -n, qq(ch, k, t, S), d, units, a.slip)
+                p.trade(K2, u, -a.lots, q(ch, K2, u), d, units, a.slip)
+                p.trade(K2 - sgn * W, u, a.lots, q(ch, K2 - sgn * W, u), d, units, a.slip)
+                log.append(f"{d:%m-%d} {side} S={S:.0f} {u} -> {K2}/{K2 - sgn * W}")
+            else:
+                shorts = [k for (k, t), n in p.legs.items() if t == side and n < 0]
+                longs = [k for (k, t), n in p.legs.items() if t == side and n > 0]
+                ks = min(shorts, key=lambda k: abs(k - S)) if shorts else None
+                kl = min(longs, key=lambda k: sgn * k) if longs else None   # nearest hedge
+                if ks is None or kl is None or np.isnan(q(ch, kl + sgn * hedge, side)):
+                    continue
+                new_short, new_long = kl, kl + sgn * hedge
+                p.trade(ks, side, a.lots, q(ch, ks, side), d, units, a.slip)                # buy back ITM short
+                p.trade(kl, side, -a.lots, q(ch, kl, side), d, units, a.slip)               # close old hedge
+                p.trade(new_short, side, -a.lots, q(ch, new_short, side), d, units, a.slip)  # short at old hedge
+                p.trade(new_long, side, a.lots, q(ch, new_long, side), d, units, a.slip)     # new deep-OTM hedge
+                log.append(f"{d:%m-%d} {side} S={S:.0f} {ks}->{new_short} hedge {new_long}")
             n_adj += 1
-            log.append(f"{d:%m-%d} {side} S={S:.0f} {ks}->{new_short} hedge {new_long}")
 
     if exit_reason == "expiry" and last != expiry:
         exit_reason = "open"                    # data ends before expiry: mark to market, don't settle
@@ -195,6 +227,9 @@ def main():
     ap.add_argument("--sl", type=float, default=0.04, help="hard stop as fraction of capital")
     ap.add_argument("--hedge", type=int, default=0, help="new hedge distance after adjustment in points; 0 = one wing, -2 = two wings")
     ap.add_argument("--max-adj", type=int, default=10)
+    ap.add_argument("--adj-mode", default="roll", choices=["roll", "recenter", "untested"],
+                    help="roll: threatened short -> old hedge strike (video reading); recenter: new fly at ATM; "
+                         "untested: move the untested side to ATM")
     ap.add_argument("--slip", type=float, default=1.0, help="points slippage per option traded")
     ap.add_argument("--exit-days-before", type=int, default=0)
     ap.add_argument("--from", dest="start", default="2024-01-01")

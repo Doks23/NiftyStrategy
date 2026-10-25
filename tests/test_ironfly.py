@@ -7,7 +7,7 @@ import pandas as pd
 from ironfly.backtest import Pos, run_cycle
 
 A = SimpleNamespace(capital=200000, lots=1, maxloss=0.03, sl=0.04, hedge=0, max_adj=10, slip=0.0,
-                    exit_days_before=0)
+                    exit_days_before=0, adj_mode="roll")
 EXP = pd.Timestamp("2026-01-27")
 
 
@@ -52,6 +52,26 @@ def test_breach_moves_short_call_to_old_hedge():
     first = r["adj_log"].split("; ")[0]
     w = r["wing"]
     assert f"24000.0->{24000.0 + w}" in first and f"hedge {24000.0 + 2 * w}" in first
+
+
+def test_recenter_opens_new_fly_at_spot():
+    path = [24000.0] * 5 + [24000.0 + 60 * i for i in range(1, 14)]
+    entry, days, spot, ch = setup(path)
+    r = run_cycle(entry, EXP, days, spot, ch, 65, A.__class__(**{**vars(A), "sl": 1.0, "adj_mode": "recenter"}))
+    first = r["adj_log"].split("; ")[0]
+    S = float(first.split("S=")[1].split()[0])
+    K2 = float(first.split("recenter ")[1].split()[0])
+    assert abs(K2 - S) <= 25
+
+
+def test_untested_moves_put_side_up():
+    path = [24000.0] * 5 + [24000.0 + 60 * i for i in range(1, 14)]
+    entry, days, spot, ch = setup(path)
+    r = run_cycle(entry, EXP, days, spot, ch, 65, A.__class__(**{**vars(A), "sl": 1.0, "adj_mode": "untested"}))
+    first = r["adj_log"].split("; ")[0]
+    assert first.split()[1] == "CE" and "PE -> " in first
+    K2, KL = map(float, first.split("PE -> ")[1].split("/"))
+    assert K2 > 24000 and K2 - KL == r["wing"]
 
 
 def test_stop_loss_exits_early():

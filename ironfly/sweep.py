@@ -1,26 +1,24 @@
 """Sensitivity grid over the assumptions the video leaves open. python -m ironfly.sweep"""
 import sys
 from types import SimpleNamespace
+import numpy as np
 import pandas as pd
 from ironfly.backtest import load, run_cycle
 
-BASE = dict(capital=200000, lots=1, maxloss=0.03, sl=0.04, hedge=0, max_adj=10, slip=1.0, exit_days_before=0)
-GRID = {
-    "base (Rs2L/lot, 3% wing, 4% SL, adjust on BE)": {},
-    "no adjustments (plain iron fly)": dict(max_adj=0),
-    "max 1 adjustment": dict(max_adj=1),
-    "capital Rs1.5L/lot": dict(capital=150000),
-    "capital Rs3L/lot": dict(capital=300000),
-    "hedge 2x wing after adjust": dict(hedge=-2),
-    "no stop loss": dict(sl=9.0),
-    "exit 1 day before expiry": dict(exit_days_before=1),
-    "zero slippage": dict(slip=0.0),
-    "slippage 2 pts": dict(slip=2.0),
-    "plain fly, capital Rs1.5L/lot": dict(max_adj=0, capital=150000),
-    "plain fly, capital Rs3L/lot": dict(max_adj=0, capital=300000),
-    "plain fly, slippage 2 pts": dict(max_adj=0, slip=2.0),
-    "plain fly, exit 1 day before": dict(max_adj=0, exit_days_before=1),
-}
+BASE = dict(capital=200000, lots=1, maxloss=0.03, sl=0.04, hedge=0, max_adj=10, slip=1.0, exit_days_before=0,
+            adj_mode="roll")
+MODES = {"video: roll short to hedge": dict(adj_mode="roll"),
+         "recenter whole fly": dict(adj_mode="recenter"),
+         "shift untested side to ATM": dict(adj_mode="untested"),
+         "no adjustment": dict(max_adj=0)}
+GRID = {}
+for m, ov in MODES.items():
+    GRID[m] = ov
+    if "max_adj" not in ov:
+        GRID[f"{m} | max 1 adj"] = {**ov, "max_adj": 1}
+    GRID[f"{m} | slip 2pt"] = {**ov, "slip": 2.0}
+    GRID[f"{m} | Rs3L/lot"] = {**ov, "capital": 300000}
+    GRID[f"{m} | exit T-1"] = {**ov, "exit_days_before": 1}
 
 
 def cycles(spot, monthly, chain, lots, a):
@@ -43,7 +41,10 @@ def stats(t):
         out[f"{y} %"] = round(g.ret_pct.sum(), 1)
     out.update({"n": len(t), "win%": round(100 * (t.net > 0).mean()), "total %": round(t.ret_pct.sum(), 1),
                 "avg %": round(t.ret_pct.mean(), 2), "worst %": t.ret_pct.min(), "stops": (t.reason == "stop").sum(),
-                "costs % of gross wins": round(100 * t.costs.sum() / max(t.gross.clip(lower=0).sum(), 1))})
+                "maxDD %": round((eq := t.ret_pct.cumsum()).sub(eq.cummax().clip(lower=0)).min(), 1),
+                "ann %": round(12 * t.ret_pct.mean(), 1),
+                "sharpe": round(np.sqrt(12) * t.ret_pct.mean() / t.ret_pct.std(), 2),
+                "costs/gross wins %": round(100 * t.costs.sum() / max(t.gross.clip(lower=0).sum(), 1))})
     return out
 
 
