@@ -44,3 +44,25 @@ Implementation choices (spec gaps closed - change in `swingema/strategy.py:Param
 Data caveats: Yahoo daily (split-adjusted, but misses some splits/demergers -> overnight gaps outside
 -40%/+67% are back-adjusted as corporate actions); current listings only (survivorship bias);
 market cap uses today's share count.
+
+---
+
+# ironfly — Monthly Nifty Iron Fly with adjustments (Dhan "Working Professionals" video, caof-oHPe4E)
+
+    python -m ironfly.fetch_bhav 2024-01-01 2026-10-24     # NSE public F&O bhavcopy (EOD), no login needed
+    python -m ironfly.backtest --from 2026-01-01 --out data_if/run_2026.csv
+    python -m ironfly.sweep                                 # sensitivity grid
+    python -I tests/test_ironfly.py
+
+Rules (video summary + gaps closed; flags in `ironfly/backtest.py`): enter day after monthly expiry on the
+next monthly; sell ATM CE+PE, buy wings at +/-W where W = widest wing with max loss <= 3% of capital
+(Rs 2L/lot default); when spot closes beyond a breakeven, move the threatened short to the old hedge strike
+and buy a new hedge one wing further; 4% hard stop on MTM; hold to expiry. Costs incl. STT 0.15% from Apr-2026.
+
+Data caveats: EOD only (video enters 11-12 and uses intraday alerts; here entry, adjustments and stop act on
+daily closes). Deep-ITM closes are stale, so ITM strikes are re-priced from the OTM twin via put-call parity
+on the same-expiry future. 1 pt slippage per option traded.
+
+Results (per lot, Rs 2L capital): 2026 (10 expiries Jan-Oct) base -5.7%, 5 stops; same fly with NO
+adjustments +26.3% (9 done + Oct open). Feb-2024..Oct-2026: base -11.7% over 33 cycles; no-adjust +43.9%
+over 32. See `data_export/ironfly_*`.
