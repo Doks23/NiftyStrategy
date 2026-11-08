@@ -160,12 +160,15 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
 .gseg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .t2{font-size:9.5px;margin-left:6px;padding:1px 4px;border-radius:3px;background:var(--chip);color:var(--muted);vertical-align:1px}
 .pitem[aria-current="true"] .t2{background:rgba(255,255,255,.25);color:#fff}
+.indgrp{display:inline-flex;align-items:center;gap:6px}
+.indlab{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .ind button{display:inline-flex;align-items:center;gap:6px}
 .ind button i{display:inline-block;width:12px;height:3px;border-radius:2px}
 .seg.ind button[aria-pressed="true"]{background:var(--sheet);color:var(--ink)}
 .seg.ind button[aria-pressed="false"]{background:var(--paper);color:var(--muted);text-decoration:line-through;opacity:.6}
 .ind button[aria-pressed="false"] i{background:var(--rule)!important}
 .ms-btn{padding:7px 12px!important;border-radius:6px;border:1px solid var(--rule)!important;font-weight:600}
+.pr-msg{font-family:var(--f-mono);font-size:11.5px;color:var(--muted)}
 .ms-btn:hover{background:var(--chip)!important}
 .ms-btn[aria-pressed="true"]{background:var(--ink)!important;color:var(--paper)!important;border-color:var(--ink)!important}
 #chart.measuring,#chart.measuring *{cursor:crosshair!important}
@@ -289,18 +292,25 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
         <button class="ic" id="next" aria-label="Next stock" title="Next stock (])">›</button>
       </div>
       <div class="ws-tools">
-        <div class="seg ind" role="group" aria-label="Show or hide moving averages">
-          <button data-ind="e10" aria-pressed="true" title="10-period EMA on the stock and the Smallcap 250"><i style="background:var(--ema10)"></i>EMA 10</button>
-          <button data-ind="e20" aria-pressed="true" title="20-period EMA on the stock and the Smallcap 250"><i style="background:var(--ema20)"></i>EMA 20</button>
+        <div class="indgrp"><span class="indlab">Stock</span>
+        <div class="seg ind" role="group" aria-label="Lines on the stock chart">
+          <button data-ind="e10" aria-pressed="true" title="10-period EMA on the stock"><i style="background:var(--ema10)"></i>EMA 10</button>
+          <button data-ind="e20" aria-pressed="true" title="20-period EMA on the stock"><i style="background:var(--ema20)"></i>EMA 20</button>
           <button data-ind="m50" aria-pressed="true" title="50-day simple average"><i style="background:var(--ma50)"></i>50</button>
           <button data-ind="m200" aria-pressed="true" title="200-day simple average"><i style="background:var(--ma200)"></i>200</button>
+        </div></div>
+        <div class="indgrp"><span class="indlab">Index</span>
+        <div class="seg ind" role="group" aria-label="Lines on the Smallcap 250 chart">
+          <button data-ind="ie10" aria-pressed="true" title="10-period EMA on the Smallcap 250"><i style="background:var(--ema10)"></i>EMA 10</button>
+          <button data-ind="ie20" aria-pressed="true" title="20-period EMA on the Smallcap 250"><i style="background:var(--ema20)"></i>EMA 20</button>
           <button data-ind="rg" aria-pressed="true" title="Market regime on the Smallcap 250: green above EMA 10 and 20, red below both, amber mixed. A marker shows each change, confirmed by 2 closes."><i style="background:linear-gradient(90deg,var(--up) 0 33%,var(--amber) 33% 66%,var(--down) 66% 100%)"></i>Regime</button>
-        </div>
+        </div></div>
         <div class="seg" role="group" aria-label="Chart range">
           <button id="v-setup" aria-pressed="true">Setup</button>
           <button id="v-full" aria-pressed="false">Whole move</button>
         </div>
         <button class="ms-btn" id="ms-toggle" aria-pressed="false" title="Measure the % move between two points (M)">↕ Measure %</button>
+        <button class="ms-btn" id="pr-btn" type="button" title="Save this chart as a print-ready PDF (A4 landscape)">⎙ Print</button><span class="pr-msg" id="pr-msg" aria-live="polite"></span>
         <button class="rp-main" id="rp-toggle" aria-pressed="false">▶ Replay</button>
       </div>
     </div>
@@ -334,7 +344,7 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
     <div class="readout" id="readout" hidden></div>
     <div class="ws-foot">
       <div class="timeline" id="timeline"></div>
-      <div class="keys"><span><i style="background:var(--ema10)"></i>EMA 10</span><span><i style="background:var(--ema20)"></i>EMA 20</span><span><i style="background:var(--ma50)"></i>50 DMA</span><span><i style="background:var(--ma200)"></i>200 DMA</span><span><i style="background:var(--accent);opacity:.6"></i>Pre-breakout range</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Q = result (est.): green if net profit YoY ≥ 0, red if negative</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Nifty Smallcap 250 (candles, with EMA 10/20)</span><span><i style="background:linear-gradient(90deg,var(--up) 0 33%,var(--amber) 33% 66%,var(--down) 66% 100%)"></i>Market regime (ribbon under the index): ▲ uptrend = above EMA 10 and 20 · ● mixed · ▼ downtrend = below both; a marker shows each change, confirmed by 2 closes</span></div>
+      <div class="keys"><span><i style="background:var(--ema10)"></i>EMA 10</span><span><i style="background:var(--ema20)"></i>EMA 20</span><span><i style="background:var(--ma50)"></i>50 DMA</span><span><i style="background:var(--ma200)"></i>200 DMA</span><span><i style="background:var(--accent);opacity:.6"></i>Pre-breakout range</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Q = result (est.): green if net profit YoY ≥ 0, red if negative</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Nifty Smallcap 250 (candles; its EMA 10/20 toggle separately)</span><span><i style="background:linear-gradient(90deg,var(--up) 0 33%,var(--amber) 33% 66%,var(--down) 66% 100%)"></i>Market regime (ribbon under the index): ▲ uptrend = above EMA 10 and 20 · ● mixed · ▼ downtrend = below both; a marker shows each change, confirmed by 2 closes</span></div>
     </div>
   </div>
   <div class="info3">
@@ -743,10 +753,10 @@ function ema(v,n){const k=2/(n+1),o=[];let e=null,c=0,s=0;
  for(const x of v){if(x==null){o.push(e);continue}
   if(e==null){s+=x;c++;if(c===n)e=s/n;o.push(e)}else{e=x*k+e*(1-k);o.push(e)}}
  return o}
-const IND={e10:true,e20:true,m50:true,m200:true,rg:true};
+const IND={e10:true,e20:true,m50:true,m200:true,ie10:true,ie20:true,rg:true};
 try{Object.assign(IND,JSON.parse(localStorage.getItem('winners-ind')||'{}'))}catch(e){}
 function applyInd(){
- if(S.e10){S.e10.applyOptions({visible:IND.e10});S.e20.applyOptions({visible:IND.e20});S.m50.applyOptions({visible:IND.m50});S.m200.applyOptions({visible:IND.m200});S.ie10.applyOptions({visible:IND.e10});S.ie20.applyOptions({visible:IND.e20});S.rg.applyOptions({visible:IND.rg});if(S.ixMk&&!IND.rg)S.ixMk.setMarkers([])}
+ if(S.e10){S.e10.applyOptions({visible:IND.e10});S.e20.applyOptions({visible:IND.e20});S.m50.applyOptions({visible:IND.m50});S.m200.applyOptions({visible:IND.m200});S.ie10.applyOptions({visible:IND.ie10});S.ie20.applyOptions({visible:IND.ie20});S.rg.applyOptions({visible:IND.rg});if(S.ixMk&&!IND.rg)S.ixMk.setMarkers([])}
  document.querySelectorAll('[data-ind]').forEach(b=>b.setAttribute('aria-pressed',!!IND[b.dataset.ind]));
 }
 document.querySelectorAll('[data-ind]').forEach(b=>b.onclick=()=>{
@@ -927,7 +937,69 @@ document.addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target
 $('#ms-toggle').onclick=()=>msSet(!MS.on);
 new ResizeObserver(()=>msDraw()).observe($('#chart'));
 const mq=matchMedia('(prefers-color-scheme: dark)');mq.addEventListener?.('change',draw);
-new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+new MutationObserver(()=>{if(!PR.busy)draw()}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+
+/* ---- print: what is on screen, redrawn in the light theme, as an A4 landscape PDF ---- */
+const PR={busy:false};
+function prMsg(s){$('#pr-msg').textContent=s||''}
+function loadJsPDF(){return window.jspdf?Promise.resolve(window.jspdf):new Promise((ok,no)=>{const s=document.createElement('script');
+ s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';s.onload=()=>ok(window.jspdf);s.onerror=()=>no(new Error('The PDF library did not load.'));document.head.appendChild(s)})}
+const frame=()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+async function chartImage(){
+ const root=document.documentElement,prev=root.getAttribute('data-theme'),vr=chart.timeScale().getVisibleLogicalRange();
+ PR.busy=true;root.setAttribute('data-theme','light');draw();if(vr)chart.timeScale().setVisibleLogicalRange(vr);await frame();
+ const shot=chart.takeScreenshot();
+ // the measure box is page overlay, not chart canvas: draw it onto the shot
+ const m=MS.a&&(MS.b||MS.live)?{a:MS.a,b:MS.b||MS.live}:null,s=shot.width/$('#chart').clientWidth;
+ let box=null;if(m){const ts=chart.timeScale(),xa=ts.logicalToCoordinate(m.a.i),xb=ts.logicalToCoordinate(m.b.i),ya=S.cs.priceToCoordinate(m.a.price),yb=S.cs.priceToCoordinate(m.b.price);
+  if(![xa,xb,ya,yb].some(v=>v==null))box={xa,xb,ya,yb,up:m.b.price>=m.a.price,txt:(()=>{const pct=(m.b.price/m.a.price-1)*100,diff=m.b.price-m.a.price,days=Math.abs(Math.round((new Date(C[cur][m.b.i][0])-new Date(C[cur][m.a.i][0]))/864e5));return `${pct>=0?'+':''}${pct.toFixed(2)}%   ${diff>=0?'+':''}${diff.toFixed(2)}   ${Math.abs(m.b.i-m.a.i)} bars · ${days}d`})()}}
+ const col={up:css('--up'),down:css('--down'),ink:css('--ink'),muted:css('--muted'),rule:css('--rule')};
+ if(prev==null)root.removeAttribute('data-theme');else root.setAttribute('data-theme',prev);
+ draw();if(vr)chart.timeScale().setVisibleLogicalRange(vr);PR.busy=false;
+ return {shot,s,box,col};
+}
+function composePage({shot,s,box,col}){
+ const r=A.find(x=>x.stock===cur),rows=C[cur],last=rows[rp.on?rp.i:rows.length-1][0],g=regAt(last);
+ const W=shot.width,pad=Math.round(18*s),head=Math.round(70*s),foot=Math.round(54*s);
+ const cv=document.createElement('canvas');cv.width=W+pad*2;cv.height=head+shot.height+foot+pad;const x=cv.getContext('2d');
+ x.fillStyle='#ffffff';x.fillRect(0,0,cv.width,cv.height);
+ x.fillStyle=col.ink;x.font=`800 ${Math.round(24*s)}px Archivo, Arial, sans-serif`;x.textBaseline='alphabetic';
+ x.fillText(r.stock,pad,pad+Math.round(24*s));let w=x.measureText(r.stock).width;
+ x.font=`600 ${Math.round(15*s)}px "JetBrains Mono", monospace`;x.fillStyle=col.up;x.fillText(`  ${fmtPct(r.calc_return)} in 2025 · Tier ${r.tier}`,pad+w,pad+Math.round(24*s));
+ w+=x.measureText(`  ${fmtPct(r.calc_return)} in 2025 · Tier ${r.tier}`).width;
+ x.fillStyle=col.muted;x.font=`500 ${Math.round(12*s)}px "JetBrains Mono", monospace`;x.fillText(`   ${r.industry.toUpperCase()} · score ${r.score}/9`,pad+w,pad+Math.round(24*s));
+ x.font=`500 ${Math.round(12*s)}px "JetBrains Mono", monospace`;x.fillStyle=col.ink;
+ const kd=`Low ${fmtD(r.low_date)}   Breakout ${fmtD(r.bo_date)} (${r.bo_vol_x}× vol)   52w-high reclaim ${fmtD(r.nh_date)}   Top ${fmtD(r.high_date)}   Chart as of ${fmtD(last)}`;
+ x.fillText(kd,pad,pad+Math.round(48*s));
+ if(g&&g.s){const t2=`   Market: ${REGN[g.s]} since ${fmtD(g.since)}`;x.fillStyle=css(REGV[g.s]);x.fillText(t2,pad+x.measureText(kd).width,pad+Math.round(48*s))}
+ x.drawImage(shot,pad,head);
+ if(box){const bx=pad+Math.min(box.xa,box.xb)*s,by=head+Math.min(box.ya,box.yb)*s,bw=Math.abs(box.xb-box.xa)*s,bh=Math.abs(box.yb-box.ya)*s,c=box.up?col.up:col.down;
+  x.fillStyle=c+'24';x.fillRect(bx,by,bw,bh);x.strokeStyle=c;x.lineWidth=Math.max(1,s);x.strokeRect(bx,by,bw,bh);
+  x.font=`600 ${Math.round(12*s)}px "JetBrains Mono", monospace`;const tw=x.measureText(box.txt).width+12*s,th=20*s,ty=box.up?by-th-4*s:by+bh+4*s;
+  x.fillStyle=c;x.fillRect(bx+bw/2-tw/2,ty,tw,th);x.fillStyle='#fff';x.fillText(box.txt,bx+bw/2-tw/2+6*s,ty+14*s)}
+ x.strokeStyle=col.rule;x.lineWidth=Math.max(1,s);x.beginPath();x.moveTo(pad,head+shot.height+Math.round(10*s));x.lineTo(cv.width-pad,head+shot.height+Math.round(10*s));x.stroke();
+ x.fillStyle=col.muted;x.font=`500 ${Math.round(11*s)}px "JetBrains Mono", monospace`;
+ const on=[IND.e10&&'EMA 10',IND.e20&&'EMA 20',IND.m50&&'50 DMA',IND.m200&&'200 DMA'].filter(Boolean).join(', ')||'no averages';
+ const fit=(txt,y)=>{let t=txt;while(x.measureText(t).width>cv.width-pad*2&&t.length>10)t=t.slice(0,t.lastIndexOf(' · '))||t.slice(0,-2);x.fillText(t,pad,y)};
+ fit(`Panes: price (${on}) · volume · Smallcap 250${IND.rg?' + regime (▲ up ● mixed ▼ down)':''} · Q = est. result date (green/red = profit YoY up/down)`,head+shot.height+Math.round(28*s));
+ fit(`Data: Dhan daily prices, Screener.in quarterly results · 2025 Winners Playbook · printed ${fmtD(new Date().toISOString().slice(0,10))}`,head+shot.height+Math.round(45*s));
+ return cv;
+}
+async function printChart(){
+ if(PR.busy||!chart)return;prMsg('Preparing PDF…');
+ try{
+  const [lib,img]=await Promise.all([loadJsPDF(),chartImage()]);const cv=composePage(img);
+  const pdf=new lib.jsPDF({orientation:'landscape',unit:'mm',format:'a4'}),mw=277,mh=190;let w=mw,h=w*cv.height/cv.width;if(h>mh){h=mh;w=h*cv.width/cv.height}
+  pdf.addImage(cv.toDataURL('image/jpeg',0.92),'JPEG',(297-w)/2,(210-h)/2,w,h);pdf.setProperties({title:`${cur} 2025 chart`});
+  const blob=pdf.output('blob'),name=`${cur.replace(/[^A-Za-z0-9]/g,'_')}_2025_chart.pdf`;
+  const dl=window.claude&&window.claude.use?await window.claude.use('downloads'):null;
+  if(dl){try{await dl.save({filename:name,data:blob});prMsg('Saved. Open the PDF to print it.')}
+   catch(e){prMsg(e&&e.code==='declined'?'':e&&e.code==='rate_limited'?'A save prompt is already open.':'Saving is not available here.')}}
+  else{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);prMsg('PDF downloaded. Open it to print.')}
+ }catch(e){PR.busy=false;prMsg(e&&e.message?e.message:'Could not make the PDF.')}
+ setTimeout(()=>prMsg(''),6000);
+}
+$('#pr-btn').onclick=printChart;
 </script>
 
 </body></html>
