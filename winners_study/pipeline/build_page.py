@@ -26,6 +26,10 @@ def run(cfg):
                  "__PYEAR__": str(y - 1), "__IXLO_FROM__": cfg["index_low_window"][0],
                  "__IXLO_TO__": cfg["index_low_window"][1]}.items():
         t = t.replace(k, v)
+    # fragment: page content only (the claude.ai Artifact host adds the document skeleton)
+    (cache / "page_fragment.html").write_text(t)
     out = ROOT / "reports" / f"winners_{y}.html"
-    out.write_text(t)
+    out.write_text('<!doctype html>\n<html lang="en"><head><meta charset="utf-8">'
+                   '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
+                   '</head><body style="margin:0">\n' + t + '\n</body></html>\n')
     print(f"  wrote {out.relative_to(ROOT.parent)} ({len(t)//1024} KB)")
