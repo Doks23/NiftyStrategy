@@ -256,7 +256,7 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
 </section>
 
 <section id="bench-sec">
-  <div class="sec-head"><div class="eyebrow">Chart workstation</div><h2>Stock by stock</h2><p class="muted">Opens on the setup window. <b>Replay</b> steps through one candle at a time with the future hidden: ← → for a single bar, space to play or pause. Use [ and ] to move to the previous or next stock. <b>Measure %</b> (or M): click two points on the price pane to read the % move, the price change and the days between them. Esc closes it. Drag the pane dividers to resize.</p></div>
+  <div class="sec-head"><div class="eyebrow">Chart workstation</div><h2>Stock by stock</h2><p class="muted">Opens on the setup window. Press ← → to move the chart one candle at a time (Shift + arrow: 10 candles); the legend and the day explanation follow the candle. <b>Replay</b> hides the future: in replay, ← → step a bar and space plays or pauses. Use [ and ] to move to the previous or next stock. <b>Measure %</b> (or M): click two points on the price pane to read the % move, the price change and the days between them. Esc closes it. Drag the pane dividers to resize.</p></div>
   <div class="ws">
     <div class="ws-bar">
       <div class="ws-id">
@@ -546,7 +546,8 @@ function draw(){
  msHook();
  chart.subscribeCrosshairMove(p=>{
   if(!p||!p.time){legend(rp.on?rp.i:rows.length-1);return}
-  legend(idxOf(rows,p.time));
+  if(performance.now()-stepT<300){legend(FB);return}   // a key step owns the cursor briefly
+  FB=idxOf(rows,p.time);legend(FB);
  });
  render(rp.on?rp.i:rows.length-1);
  if(!rp.on)setView();
@@ -636,8 +637,9 @@ document.querySelectorAll('[data-jump]').forEach(b=>b.onclick=()=>{
 });
 document.addEventListener('keydown',e=>{
  if(!rp.on||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)&&e.target.type!=='range')return;
- if(e.key==='ArrowRight'){e.preventDefault();pause();go(rp.i+1)}
- else if(e.key==='ArrowLeft'){e.preventDefault();pause();go(rp.i-1)}
+ const st=e.shiftKey?10:1;
+ if(e.key==='ArrowRight'){e.preventDefault();pause();go(rp.i+st)}
+ else if(e.key==='ArrowLeft'){e.preventDefault();pause();go(rp.i-st)}
  else if(e.key===' '&&e.target.tagName!=='BUTTON'){e.preventDefault();$('#rp-play').click()}
 });
 
@@ -716,9 +718,26 @@ function msDraw(){
 function msHook(){
  chart.timeScale().subscribeVisibleLogicalRangeChange(()=>requestAnimationFrame(msDraw));
 }
+/* ---- keyboard: ← → move one candle (Shift: 10) outside replay ---- */
+let FB=null,stepT=0;   // focused bar index; time of the last key step
+function stepBar(d){
+ if(!chart)return;const rows=C[cur],n=rows.length,ts=chart.timeScale(),vr=ts.getVisibleLogicalRange();
+ if(FB==null)FB=vr?Math.max(0,Math.min(n-1,Math.floor(vr.to)-2)):n-1;
+ const nf=Math.max(0,Math.min(n-1,FB+d)),moved=nf-FB;FB=nf;
+ stepT=performance.now();
+ if(vr&&moved)ts.setVisibleLogicalRange({from:vr.from+moved,to:vr.to+moved});   // chart scrolls with the candle
+ legend(FB);
+ const pin=()=>{stepT=performance.now();try{chart.setCrosshairPosition(rows[FB][4],rows[FB][0],S.cs)}catch(e){}legend(FB)};
+ pin();requestAnimationFrame(pin);
+}
+document.addEventListener('keydown',e=>{
+ if(rp.on||e.altKey||e.ctrlKey||e.metaKey||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;
+ if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight')return;
+ e.preventDefault();stepBar((e.key==='ArrowRight'?1:-1)*(e.shiftKey?10:1));
+});
 function select(s){
  const wasRp=rp.on;if(rp.on){pause();rp.on=false}
- cur=s;const r=A.find(x=>x.stock===s);
+ cur=s;const r=A.find(x=>x.stock===s);FB=null;
  MS.a=MS.b=MS.live=null;msHint();
  document.querySelectorAll('.pitem').forEach(b=>b.setAttribute('aria-current',b.dataset.s===s));
  $('#c-name').textContent=r.stock;$('#c-ret').textContent=fmtPct(r.calc_return)+' in 2025';
