@@ -48,6 +48,13 @@ Each stock's tier comes from its actual low-to-high move in the year, measured o
 
 `inputs/winnerdb_2025_screening.csv` gives the keep or remove decision and the reason for every row of the raw file. 35 were removed: 10 duplicates of names already in the study (SMLISUZU is SMLMAH), 4 that could not be verified (a rights entitlement, a missing symbol, and two whose file details don't match the NSE symbol), and 21 that moved less than 100% in 2025. That raw file's "gain from 52-week low" is measured up to the export date, not over 2025, and some figures include unadjusted splits.
 
+## Marking stocks as "not a winner"
+
+On the report, each stock's Setup score panel has **Mark as not a winner**, with a reason and an optional note. A marked stock drops out of every summary right away, shows struck through in the stock list, and is listed under "Marked as not winners", where Undo restores it.
+
+- On the published claude.ai page, marks are saved in the page's shared data, so Claude can read them. In the standalone file from `reports/`, they are saved in the browser only; "Copy list" exports them.
+- To remove marked stocks from the study for good, add them to `inputs/exclusions_<year>.csv` (`Stock Name,Reason,Note,Marked`), or ask Claude to "remove the marked stocks". The pipeline drops those names from every step. The report lists them as "already removed for good", so the decision stays visible.
+
 ## Adding a new year
 
 1. Put the winners file at `inputs/winners_<year>.csv`. It needs the same columns as the 2025 file: `Stock Name`, `Maximum Potential Return(%) in <year>`, `Basic Industry`, and so on.
@@ -66,6 +73,7 @@ Each stock's tier comes from its actual low-to-high move in the year, measured o
 - **Reclaim**: the first close above the prior 250-session high.
 - **RS**: stock close ÷ benchmark close. It is used in the checklist and the relative-strength story; the chart does not draw it.
 - **Excess**: the stock's daily % change minus the benchmark's daily % change.
+- **Market regime** (on the Smallcap 250): uptrend when the close is above both EMA 10 and EMA 20, downtrend when below both, mixed otherwise. A new regime needs 2 consecutive closes; the change is marked on the confirming close (▲ uptrend, ● mixed, ▼ downtrend), and a thin ribbon under the index shows the current regime. It is computed once from the full index history, so every stock shows the same market signals.
 - **Result date**: an estimate, quarter end + 45 days (+60 for March), the SEBI deadline.
 
 Winners only: there is no comparison group, so the hit rates describe what winners looked like, not how often the setup works.
