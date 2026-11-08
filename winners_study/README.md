@@ -7,6 +7,8 @@ A deep dive into NSE stocks that gained 200%+ in a calendar year. For each stock
 - compares every day with the Nifty Smallcap 250;
 - builds an interactive report with candlestick charts and bar replay.
 
+On each chart you can show or hide EMA 10, EMA 20, the 50 DMA and the 200 DMA. The **Measure %** tool (shortcut: M) works like TradingView's ruler: click two points and it shows the % move, the price change, and the bars and days between them.
+
 The output is one self-contained HTML file: `reports/winners_<year>.html`.
 
 ## Run

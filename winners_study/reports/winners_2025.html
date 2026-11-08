@@ -1,3 +1,5 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body style="margin:0">
 <title>2025 Winners Playbook</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -8,7 +10,7 @@
 :root{
   --paper:#f3f5f7; --sheet:#ffffff; --ink:#16202c; --muted:#5b6876; --rule:#d9dfe6; --grid:#eceff3;
   --up:#13856b; --down:#c2453a; --up-a:rgba(19,133,107,.35); --down-a:rgba(194,69,58,.35);
-  --accent:#1f5fbf; --amber:#b7791f; --rs:#7a4cc2; --ma50:#1f5fbf; --ma200:#b7791f;
+  --accent:#1f5fbf; --amber:#b7791f; --rs:#7a4cc2; --ma50:#1f5fbf; --ma200:#b7791f; --ema10:#c2367a; --ema20:#0e8fa3;
   --good:#13856b; --bad:#c2453a; --chip:#e7ecf2;
   --f-display:"Archivo","Arial Narrow",system-ui,sans-serif;
   --f-body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -17,12 +19,12 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --paper:#0f141a; --sheet:#151c24; --ink:#e3e8ee; --muted:#93a0ae; --rule:#26313d; --grid:#1d2630;
   --up:#2fb391; --down:#e0695d; --up-a:rgba(47,179,145,.35); --down-a:rgba(224,105,93,.35);
-  --accent:#6aa3ff; --amber:#e0a84a; --rs:#b08cf0; --ma50:#6aa3ff; --ma200:#e0a84a;
+  --accent:#6aa3ff; --amber:#e0a84a; --rs:#b08cf0; --ma50:#6aa3ff; --ma200:#e0a84a; --ema10:#ff7eb3; --ema20:#4fd0e0;
   --good:#2fb391; --bad:#e0695d; --chip:#1f2833; color-scheme:dark}}
 :root[data-theme="dark"]{
   --paper:#0f141a; --sheet:#151c24; --ink:#e3e8ee; --muted:#93a0ae; --rule:#26313d; --grid:#1d2630;
   --up:#2fb391; --down:#e0695d; --up-a:rgba(47,179,145,.35); --down-a:rgba(224,105,93,.35);
-  --accent:#6aa3ff; --amber:#e0a84a; --rs:#b08cf0; --ma50:#6aa3ff; --ma200:#e0a84a;
+  --accent:#6aa3ff; --amber:#e0a84a; --rs:#b08cf0; --ma50:#6aa3ff; --ma200:#e0a84a; --ema10:#ff7eb3; --ema20:#4fd0e0;
   --good:#2fb391; --bad:#e0695d; --chip:#1f2833; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
@@ -138,6 +140,23 @@ th{font-weight:600;color:var(--muted);font-size:11px}
 code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1px 5px;border-radius:3px}
 .caveats{font-size:13.5px;color:var(--muted);display:flex;flex-direction:column;gap:6px;max-width:80ch}
 .caveats ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+[hidden]{display:none!important}
+.ind button{display:inline-flex;align-items:center;gap:6px}
+.ind button i{display:inline-block;width:12px;height:3px;border-radius:2px}
+.seg.ind button[aria-pressed="true"]{background:var(--sheet);color:var(--ink)}
+.seg.ind button[aria-pressed="false"]{background:var(--paper);color:var(--muted);text-decoration:line-through;opacity:.6}
+.ind button[aria-pressed="false"] i{background:var(--rule)!important}
+.ms-btn{padding:7px 12px!important;border-radius:6px;border:1px solid var(--rule)!important;font-weight:600}
+.ms-btn:hover{background:var(--chip)!important}
+.ms-btn[aria-pressed="true"]{background:var(--ink)!important;color:var(--paper)!important;border-color:var(--ink)!important}
+#chart.measuring,#chart.measuring *{cursor:crosshair!important}
+.ms-box{position:absolute;z-index:2;pointer-events:none;border:1px solid}
+.ms-box.up{background:color-mix(in srgb,var(--up) 14%,transparent);border-color:var(--up)}
+.ms-box.dn{background:color-mix(in srgb,var(--down) 14%,transparent);border-color:var(--down)}
+.ms-lab{position:absolute;z-index:4;pointer-events:none;display:flex;gap:10px;align-items:baseline;white-space:nowrap;font-family:var(--f-mono);font-size:12px;padding:5px 9px;border-radius:5px;color:#fff;font-variant-numeric:tabular-nums;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.ms-lab b{font-size:13px}
+.ms-lab.up{background:var(--up)}.ms-lab.dn{background:var(--down)}
+.ms-hint{position:absolute;top:30px;left:10px;z-index:4;pointer-events:none;font-family:var(--f-mono);font-size:11.5px;background:var(--ink);color:var(--paper);padding:4px 8px;border-radius:4px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 /* ---- workstation ---- */
 .wrap{max-width:1520px}
@@ -237,7 +256,7 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
 </section>
 
 <section id="bench-sec">
-  <div class="sec-head"><div class="eyebrow">Chart workstation</div><h2>Stock by stock</h2><p class="muted">Opens on the setup window. <b>Replay</b> steps through one candle at a time with the future hidden: ← → for a single bar, space to play or pause. Use [ and ] to move to the previous or next stock. Drag the pane dividers to resize.</p></div>
+  <div class="sec-head"><div class="eyebrow">Chart workstation</div><h2>Stock by stock</h2><p class="muted">Opens on the setup window. <b>Replay</b> steps through one candle at a time with the future hidden: ← → for a single bar, space to play or pause. Use [ and ] to move to the previous or next stock. <b>Measure %</b> (or M): click two points on the price pane to read the % move, the price change and the days between them. Esc closes it. Drag the pane dividers to resize.</p></div>
   <div class="ws">
     <div class="ws-bar">
       <div class="ws-id">
@@ -246,10 +265,17 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
         <button class="ic" id="next" aria-label="Next stock" title="Next stock (])">›</button>
       </div>
       <div class="ws-tools">
+        <div class="seg ind" role="group" aria-label="Show or hide moving averages">
+          <button data-ind="e10" aria-pressed="true" title="10-period EMA on the stock and the Smallcap 250"><i style="background:var(--ema10)"></i>EMA 10</button>
+          <button data-ind="e20" aria-pressed="true" title="20-period EMA on the stock and the Smallcap 250"><i style="background:var(--ema20)"></i>EMA 20</button>
+          <button data-ind="m50" aria-pressed="true" title="50-day simple average"><i style="background:var(--ma50)"></i>50</button>
+          <button data-ind="m200" aria-pressed="true" title="200-day simple average"><i style="background:var(--ma200)"></i>200</button>
+        </div>
         <div class="seg" role="group" aria-label="Chart range">
           <button id="v-setup" aria-pressed="true">Setup</button>
           <button id="v-full" aria-pressed="false">Whole move</button>
         </div>
+        <button class="ms-btn" id="ms-toggle" aria-pressed="false" title="Measure the % move between two points (M)">↕ Measure %</button>
         <button class="rp-main" id="rp-toggle" aria-pressed="false">▶ Replay</button>
       </div>
     </div>
@@ -275,6 +301,7 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
       </aside>
       <div class="ws-chart">
         <div class="legend-ohlc" id="legend"></div>
+        <div class="ms-box" id="ms-box" hidden></div><div class="ms-lab" id="ms-lab" hidden></div><div class="ms-hint" id="ms-hint" hidden></div>
         <div id="chart"></div>
       </div>
     </div>
@@ -282,7 +309,7 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
     <div class="readout" id="readout" hidden></div>
     <div class="ws-foot">
       <div class="timeline" id="timeline"></div>
-      <div class="keys"><span><i style="background:var(--ma50)"></i>50 DMA</span><span><i style="background:var(--ma200)"></i>200 DMA</span><span><i style="background:var(--accent);opacity:.6"></i>Pre-breakout range</span><span><i style="background:var(--amber)"></i>Q = result (est.)</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Nifty Smallcap 250 (OHLC bars)</span></div>
+      <div class="keys"><span><i style="background:var(--ema10)"></i>EMA 10</span><span><i style="background:var(--ema20)"></i>EMA 20</span><span><i style="background:var(--ma50)"></i>50 DMA</span><span><i style="background:var(--ma200)"></i>200 DMA</span><span><i style="background:var(--accent);opacity:.6"></i>Pre-breakout range</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Q = result (est.): green if net profit YoY ≥ 0, red if negative</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Nifty Smallcap 250 (candles, with EMA 10/20)</span></div>
     </div>
   </div>
   <div class="info3">
@@ -403,7 +430,7 @@ function allMarkers(r,rows){
  add(r.bo_date,{position:'belowBar',shape:'arrowUp',color:css('--accent'),text:'BO '+r.bo_vol_x+'×'},'k');
  if(r.nh_date)add(r.nh_date,{position:'belowBar',shape:'circle',color:css('--rs'),text:'52wH'},'k');
  add(r.high_date,{position:'aboveBar',shape:'arrowDown',color:css('--down'),text:'Top'},'k');
- r.earnings.forEach(e=>{if(e.rd<rows[0][0]||e.rd>rows[rows.length-1][0])return;const np=e.np_yoy==null?'':e.np_yoy===999?' TA':' '+fmtPct(e.np_yoy);add(e.rd,{position:'aboveBar',shape:'square',color:css('--amber'),text:'Q'+np},'q')});
+ r.earnings.forEach(e=>{if(e.rd<rows[0][0]||e.rd>rows[rows.length-1][0])return;const np=e.np_yoy==null?'':e.np_yoy===999?' TA':' '+fmtPct(e.np_yoy);add(e.rd,{position:'aboveBar',shape:'square',color:e.np_yoy==null?css('--muted'):(e.np_yoy>=0?css('--up'):css('--down')),text:'Q'+np},'q')});
  return M.sort((a,b)=>a.time.localeCompare(b.time));
 }
 /* ---- market context: index move, excess move, day explanation, RS story ---- */
@@ -486,7 +513,8 @@ function legend(i){
  $('#legend').innerHTML=`<span><b>${cur}</b> <span class="lb">· 1D · NSE</span></span>`+
   `<span><span class="lb">O</span> <b style="color:${col}">${f(x[1])}</b></span><span><span class="lb">H</span> <b style="color:${col}">${f(x[2])}</b></span><span><span class="lb">L</span> <b style="color:${col}">${f(x[3])}</b></span><span><span class="lb">C</span> <b style="color:${col}">${f(x[4])}</b> <span style="color:${col}">${ch>=0?'+':''}${ch.toFixed(2)}%</span></span>`+
   `<span><span class="lb">Vol</span> <b>${fmtV(x[5])}</b>${x[8]?` <span class="lb">(${(x[5]/x[8]).toFixed(1)}× avg)</span>`:''}</span>`+
-  `<span style="color:var(--ma50)">50 ${f(x[6])}</span><span style="color:var(--ma200)">200 ${f(x[7])}</span>`+
+  (IND.e10&&S.E10?`<span style="color:var(--ema10)">EMA10 ${f(S.E10[i])}</span>`:'')+(IND.e20&&S.E20?`<span style="color:var(--ema20)">EMA20 ${f(S.E20[i])}</span>`:'')+
+  (IND.m50?`<span style="color:var(--ma50)">50 ${f(x[6])}</span>`:'')+(IND.m200?`<span style="color:var(--ma200)">200 ${f(x[7])}</span>`:'')+
   (x[IXCH]!=null?`<span><span class="lb">SC250</span> <b style="color:${x[IXCH]>=0?'var(--good)':'var(--bad)'}">${fmtPct(x[IXCH])}</b></span><span><span class="lb">Excess</span> <b>${fmtPct(ch-x[IXCH])}</b></span>`:'');
  const w=why(rows,i,A.find(z=>z.stock===cur));
  $('#why').innerHTML=w.text?`<span class="wtag ${tagc(w.tag)}">${w.tag}</span><span>${fmtD(x[0])}: ${w.text}</span>`:'';
@@ -504,15 +532,18 @@ function draw(){
   crosshair:{mode:L.CrosshairMode.Normal,vertLine:{color:fg,labelBackgroundColor:css('--ink')},horzLine:{color:fg,labelBackgroundColor:css('--ink')}}});
  const line=(c,w,pane,style,extra)=>chart.addSeries(L.LineSeries,{color:c,lineWidth:w,lineStyle:style||0,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,...(extra||{})},pane);
  S={cs:chart.addSeries(L.CandlestickSeries,{upColor:css('--up'),downColor:css('--down'),wickUpColor:css('--up'),wickDownColor:css('--down'),borderVisible:false,priceLineVisible:true,priceLineStyle:2,priceFormat:(()=>{const px=rows[rows.length-1][4];const pr=px>=1000?0:px>=100?1:2;return {type:'price',precision:pr,minMove:1/Math.pow(10,pr)}})()},0),
-    m50:line(css('--ma50'),1.5,0),m200:line(css('--ma200'),1.5,0),bh:line(css('--accent'),1,0,2),bl:line(css('--accent'),1,0,2),
+    m50:line(css('--ma50'),1.5,0),m200:line(css('--ma200'),1.5,0),e10:line(css('--ema10'),1.25,0),e20:line(css('--ema20'),1.25,0),
+    E10:ema(rows.map(x=>x[4]),10),E20:ema(rows.map(x=>x[4]),20),bh:line(css('--accent'),1,0,2),bl:line(css('--accent'),1,0,2),
     vol:chart.addSeries(L.HistogramSeries,{priceFormat:{type:'volume'},priceLineVisible:false,lastValueVisible:false},1),
     v50:line(css('--muted'),1,1),
-    ix:chart.addSeries(L.BarSeries,{upColor:css('--up'),downColor:css('--down'),thinBars:false,openVisible:true,priceLineVisible:false,lastValueVisible:true,title:'SC250',priceFormat:{type:'price',precision:0,minMove:1}},2),
+    ix:chart.addSeries(L.CandlestickSeries,{upColor:css('--up'),downColor:css('--down'),wickUpColor:css('--up'),wickDownColor:css('--down'),borderVisible:false,priceLineVisible:false,lastValueVisible:true,priceFormat:{type:'price',precision:0,minMove:1}},2),
+    ie10:line(css('--ema10'),1,2),ie20:line(css('--ema20'),1,2),IE10:ema(rows.map(x=>x[IXC]),10),IE20:ema(rows.map(x=>x[IXC]),20),
     ua:css('--up-a'),da:css('--down-a'),markers:allMarkers(r,rows)};
  S.mk=L.createSeriesMarkers(S.cs,[]);
  const panes=chart.panes();
  try{panes[0].setStretchFactor(60);panes[1].setStretchFactor(15);panes[2].setStretchFactor(25)}catch(e){}
  try{L.createTextWatermark(panes[0],{horzAlign:'center',vertAlign:'center',lines:[{text:cur,color:css('--grid'),fontSize:72,fontStyle:'800'}]})}catch(e){}
+ msHook();
  chart.subscribeCrosshairMove(p=>{
   if(!p||!p.time){legend(rp.on?rp.i:rows.length-1);return}
   legend(idxOf(rows,p.time));
@@ -525,6 +556,7 @@ function render(i){
  const ser=k=>sl.filter(x=>x[k]!=null).map(x=>({time:x[0],value:x[k]}));
  S.cs.setData(sl.map(x=>({time:x[0],open:x[1],high:x[2],low:x[3],close:x[4]})));
  S.m50.setData(ser(6));S.m200.setData(ser(7));S.v50.setData(ser(8));
+ const eS=E=>sl.map((x,k)=>({time:x[0],value:E[k]})).filter(z=>z.value!=null);S.e10.setData(eS(S.E10));S.e20.setData(eS(S.E20));S.ie10.setData(eS(S.IE10));S.ie20.setData(eS(S.IE20));applyInd();
  S.vol.setData(sl.map(x=>({time:x[0],value:x[5],color:x[4]>=x[1]?S.ua:S.da})));
  const t=rows[i][0];
  const bx=t>=r.bo_date?rows.filter(x=>x[0]>=r.base_start&&x[0]<=r.bo_date):[];
@@ -537,6 +569,7 @@ function render(i){
   chart.timeScale().setVisibleLogicalRange({from:Math.max(0,i-160),to:i+14});
   $('#rp-slider').value=i;readout(i);
  }
+ msDraw();
 }
 function readout(i){
  const rows=C[cur],x=rows[i],r=A.find(z=>z.stock===cur);
@@ -614,9 +647,79 @@ function focusBar(i){
  legend(i);try{chart.setCrosshairPosition(rows[i][4],rows[i][0],S.cs)}catch(e){}
  document.querySelector('.ws').scrollIntoView({behavior:'smooth',block:'start'});
 }
+/* ---- moving-average toggles (EMA 10 / EMA 20 / 50 DMA / 200 DMA) ---- */
+function ema(v,n){const k=2/(n+1),o=[];let e=null,c=0,s=0;
+ for(const x of v){if(x==null){o.push(e);continue}
+  if(e==null){s+=x;c++;if(c===n)e=s/n;o.push(e)}else{e=x*k+e*(1-k);o.push(e)}}
+ return o}
+const IND={e10:true,e20:true,m50:true,m200:true};
+try{Object.assign(IND,JSON.parse(localStorage.getItem('winners-ind')||'{}'))}catch(e){}
+function applyInd(){
+ if(S.e10){S.e10.applyOptions({visible:IND.e10});S.e20.applyOptions({visible:IND.e20});S.m50.applyOptions({visible:IND.m50});S.m200.applyOptions({visible:IND.m200});S.ie10.applyOptions({visible:IND.e10});S.ie20.applyOptions({visible:IND.e20})}
+ document.querySelectorAll('[data-ind]').forEach(b=>b.setAttribute('aria-pressed',!!IND[b.dataset.ind]));
+}
+document.querySelectorAll('[data-ind]').forEach(b=>b.onclick=()=>{
+ IND[b.dataset.ind]=!IND[b.dataset.ind];
+ try{localStorage.setItem('winners-ind',JSON.stringify(IND))}catch(e){}
+ applyInd();legend(rp.on?rp.i:C[cur].length-1);
+});
+/* ---- measure tool: click two points on the price pane, read the % move ---- */
+const MS={on:false,a:null,b:null,live:null};
+function msSet(on){
+ MS.on=on;MS.a=MS.b=MS.live=null;
+ $('#ms-toggle').setAttribute('aria-pressed',on);$('#chart').classList.toggle('measuring',on);
+ msHint();msDraw();
+}
+function msHint(){
+ const h=$('#ms-hint');if(!MS.on){h.hidden=true;return}
+ h.hidden=false;h.textContent=!MS.a?'Click the start point':!MS.b?'Click the end point':'Click to measure again · Esc to close';
+}
+function msPoint(x,y){
+ if(!chart)return null;
+ const panes=chart.panes();if(panes.length&&y>panes[0].getHeight())return null;   // price pane only
+ const lg=chart.timeScale().coordinateToLogical(x),price=S.cs.coordinateToPrice(y);
+ if(lg==null||price==null)return null;
+ const last=rp.on?rp.i:C[cur].length-1;
+ return {i:Math.max(0,Math.min(last,Math.round(lg))),price};
+}
+// DOM pointer events, not the library's click event: it drops a quick second click
+(()=>{const el=$('#chart');let down=null;
+ const xy=e=>{const r=el.getBoundingClientRect();return [e.clientX-r.left,e.clientY-r.top]};
+ el.addEventListener('pointerdown',e=>{down=MS.on?{x:e.clientX,y:e.clientY}:null});
+ el.addEventListener('pointerup',e=>{
+  if(!MS.on||!down)return;const moved=Math.hypot(e.clientX-down.x,e.clientY-down.y)>5;down=null;
+  if(moved)return;                                   // a drag pans the chart, it is not a point
+  const pt=msPoint(...xy(e));if(!pt)return;
+  if(!MS.a||MS.b){MS.a=pt;MS.b=null;MS.live=null}else MS.b=pt;
+  msHint();msDraw();
+ });
+ el.addEventListener('pointermove',e=>{if(MS.on&&MS.a&&!MS.b){const pt=msPoint(...xy(e));if(pt){MS.live=pt;msDraw()}}});
+})();
+function msDraw(){
+ const box=$('#ms-box'),lab=$('#ms-lab'),b=MS.b||MS.live;
+ if(!chart||!MS.a||!b){box.hidden=true;lab.hidden=true;return}
+ const rows=C[cur],ts=chart.timeScale();
+ const xa=ts.logicalToCoordinate(MS.a.i),xb=ts.logicalToCoordinate(b.i),ya=S.cs.priceToCoordinate(MS.a.price),yb=S.cs.priceToCoordinate(b.price);
+ if([xa,xb,ya,yb].some(v=>v==null)){box.hidden=true;lab.hidden=true;return}
+ const up=b.price>=MS.a.price,pct=(b.price/MS.a.price-1)*100,diff=b.price-MS.a.price;
+ const bars=Math.abs(b.i-MS.a.i),days=Math.abs(Math.round((new Date(rows[b.i][0])-new Date(rows[MS.a.i][0]))/864e5));
+ Object.assign(box.style,{left:Math.min(xa,xb)+'px',top:Math.min(ya,yb)+'px',width:Math.max(1,Math.abs(xb-xa))+'px',height:Math.max(1,Math.abs(yb-ya))+'px'});
+ box.className='ms-box '+(up?'up':'dn');box.hidden=false;
+ lab.className='ms-lab '+(up?'up':'dn');
+ lab.innerHTML=`<b>${pct>=0?'+':''}${pct.toFixed(2)}%</b><span>${diff>=0?'+':''}${diff.toFixed(2)}</span><span>${bars} bars · ${days}d</span>`;
+ lab.hidden=false;
+ const lw=lab.offsetWidth,lh=lab.offsetHeight,cw=$('#chart').clientWidth;
+ const lx=Math.max(4,Math.min(cw-lw-80,(xa+xb)/2-lw/2));
+ const ly=up?Math.min(ya,yb)-lh-6:Math.max(ya,yb)+6;
+ lab.style.left=lx+'px';lab.style.top=Math.max(4,ly)+'px';
+}
+function msHook(){
+ chart.timeScale().subscribeVisibleLogicalRangeChange(()=>requestAnimationFrame(msDraw));
+}
 function select(s){
  const wasRp=rp.on;if(rp.on){pause();rp.on=false}
  cur=s;const r=A.find(x=>x.stock===s);
+ MS.a=MS.b=MS.live=null;msHint();
  document.querySelectorAll('.pitem').forEach(b=>b.setAttribute('aria-current',b.dataset.s===s));
  $('#c-name').textContent=r.stock;$('#c-ret').textContent=fmtPct(r.calc_return)+' in 2025';
  $('#c-ind').textContent=r.industry;
@@ -646,7 +749,11 @@ list();select(A[0].stock);
 function order(){return [...document.querySelectorAll('.pitem')].map(b=>b.dataset.s)}
 function step(d){const o=order(),k=o.indexOf(cur);select(o[(k+d+o.length)%o.length]);document.querySelector('.pitem[aria-current="true"]')?.scrollIntoView({block:'nearest'})}
 $('#prev').onclick=()=>step(-1);$('#next').onclick=()=>step(1);
-document.addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;if(e.key==='[')step(-1);else if(e.key===']')step(1)});
+document.addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;if(e.key==='[')step(-1);else if(e.key===']')step(1);else if(e.key==='m'||e.key==='M')msSet(!MS.on);else if(e.key==='Escape'&&MS.on)msSet(false)});
+$('#ms-toggle').onclick=()=>msSet(!MS.on);
+new ResizeObserver(()=>msDraw()).observe($('#chart'));
 const mq=matchMedia('(prefers-color-scheme: dark)');mq.addEventListener?.('change',draw);
 new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 </script>
+
+</body></html>
