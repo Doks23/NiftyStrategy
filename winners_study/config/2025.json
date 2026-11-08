@@ -20,5 +20,6 @@
     "2025-01-01",
     "2025-04-30"
   ],
-  "tier1_min": 200
+  "tier1_min": 200,
+  "exclusions_csv": "inputs/exclusions_2025.csv"
 }

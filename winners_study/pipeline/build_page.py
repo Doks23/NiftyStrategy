@@ -1,6 +1,6 @@
 """Step 4: render the self-contained HTML report from the template + analysis output."""
 import json
-from .common import ROOT
+from .common import ROOT, read_exclusions
 
 KEEP = ["stock","industry","calc_return","low_date","high_date","bo_date","nh_date","days_low_to_bo",
         "gained_before_bo","bo_to_high","nh_to_high","nh_gained_from_low","nh_vol_x","bo_vol_x","bo_gap",
@@ -24,7 +24,8 @@ def run(cfg):
     t = (ROOT / "pipeline" / "template.html").read_text()
     for k, v in {"__DATA__": j(A), "__CHARTS__": j(c), "__READ__": j(notes), "__YEAR__": str(y),
                  "__PYEAR__": str(y - 1), "__IXLO_FROM__": cfg["index_low_window"][0],
-                 "__IXLO_TO__": cfg["index_low_window"][1]}.items():
+                 "__IXLO_TO__": cfg["index_low_window"][1],
+                 "__REMOVED__": j([{"stock": x["Stock Name"], "reason": x["Reason"]} for _, x in read_exclusions(cfg).iterrows()])}.items():
         t = t.replace(k, v)
     # fragment: page content only (the claude.ai Artifact host adds the document skeleton)
     (cache / "page_fragment.html").write_text(t)

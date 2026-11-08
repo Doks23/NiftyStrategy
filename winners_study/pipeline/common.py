@@ -34,4 +34,16 @@ def read_inputs(cfg):
     """All input files for the year as one table (first occurrence of a symbol wins)."""
     files = cfg["input_csv"] if isinstance(cfg["input_csv"], list) else [cfg["input_csv"]]
     w = pd.concat([pd.read_csv(ROOT / f).assign(_file=f) for f in files], ignore_index=True)
-    return w.drop_duplicates("Stock Name", keep="first").reset_index(drop=True)
+    w = w.drop_duplicates("Stock Name", keep="first")
+    gone = set(read_exclusions(cfg)["Stock Name"])
+    if gone:
+        print(f"  excluded as not winners: {', '.join(sorted(gone & set(w['Stock Name'])))}")
+    return w[~w["Stock Name"].isin(gone)].reset_index(drop=True)
+
+
+def read_exclusions(cfg):
+    """Stocks removed from the study as 'not a winner' (marked on the report page)."""
+    f = cfg.get("exclusions_csv")
+    if not f or not (ROOT / f).exists():
+        return pd.DataFrame(columns=["Stock Name", "Reason", "Note", "Marked"])
+    return pd.read_csv(ROOT / f).fillna("")

@@ -139,6 +139,19 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
 .caveats{font-size:13.5px;color:var(--muted);display:flex;flex-direction:column;gap:6px;max-width:80ch}
 .caveats ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
 [hidden]{display:none!important}
+.exbox{border-top:1px solid var(--rule);padding-top:10px}
+.exbtn{font-family:var(--f-mono);font-size:12px;padding:6px 10px;border-radius:6px;border:1px solid var(--rule);background:var(--sheet);color:var(--ink);cursor:pointer}
+.exbtn:hover{background:var(--chip)}.exbtn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.exbtn.primary{background:var(--down);border-color:var(--down);color:#fff}
+.exform{display:flex;flex-direction:column;gap:6px;font-size:13px}
+.exform select,.exform input{font:inherit;padding:6px 8px;border:1px solid var(--rule);border-radius:6px;background:var(--sheet);color:var(--ink);min-width:0}
+.exrow{display:flex;gap:8px;margin-top:4px}
+.exon{display:flex;flex-direction:column;gap:6px;padding:10px;border-radius:6px;background:color-mix(in srgb,var(--down) 10%,transparent);border:1px solid color-mix(in srgb,var(--down) 40%,transparent);font-size:13px}
+.exon b{color:var(--down)}.exon .exbtn{align-self:flex-start}
+.pitem.ex{opacity:.55}.pitem.ex span:first-child{text-decoration:line-through}
+.ex-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+#ex-table td.tdwrap{white-space:normal;text-align:left;max-width:280px}
+.linkbtn{font:inherit;background:none;border:0;padding:0;color:var(--accent);cursor:pointer;text-decoration:underline}
 .grp{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
 .gseg button{font-family:var(--f-mono);font-size:12px;padding:6px 12px;background:var(--sheet);color:var(--ink);border:0;cursor:pointer}
 .gseg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
@@ -326,6 +339,7 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><h3>Setup score</h3><div><span class="score" id="r-score"></span><span class="muted mono"> / 9</span></div></div>
       <div class="chips" id="r-chips"></div>
       <ul class="checks" id="r-checks"></ul>
+      <div class="exbox" id="exbox"></div>
     </div>
     <div class="panel"><h3>Read</h3><p class="read" id="r-read"></p></div>
     <div class="panel"><h3>Quarterly results (YoY)</h3><div class="tbl-wrap"><table id="r-earn"></table></div><p class="note">Result date = quarter end + 45 days (+60 for March), the SEBI deadline. Actual dates are often earlier. “TA” = loss → profit. During replay, quarters not yet reported are faded.</p></div>
@@ -334,6 +348,17 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
     <div class="panel"><h3>Relative-strength story</h3><ul class="rsl" id="r-rs"></ul><p class="note">Relative strength = stock price ÷ Nifty Smallcap 250, so it rises whenever the stock beats the index, even on days when both fall. This panel uses that ratio; the chart no longer draws it.</p></div>
     <div class="panel"><h3>Big days: market or stock?</h3><div class="tbl-wrap"><table id="r-days"></table></div><p class="note">The biggest moves from 4 months before the low through the 52-week-high reclaim, plus days when the stock rose while the index fell 1.5% or more. Excess = stock % − Smallcap 250 %. Click a row to jump the chart to that day.</p></div>
   </div>
+</section>
+
+<section id="ex-sec">
+  <div class="sec-head"><div class="eyebrow">Review</div><h2>Marked as not winners</h2>
+    <p class="muted">Use <b>Mark as not a winner</b> in a stock's Setup score panel for moves that are not real setups: a takeover, a price-only or operator-style move, or bad data. Marked stocks drop out of every summary on this page right away. To remove them from the study for good, ask Claude to “remove the marked stocks”.</p>
+    <p class="note" id="ex-status"></p></div>
+  <div class="panel">
+    <div class="tbl-wrap"><table id="ex-table"></table></div>
+    <div class="ex-actions"><button class="exbtn" id="ex-copy" type="button">Copy list</button><span class="note" id="ex-copied" aria-live="polite"></span></div>
+  </div>
+  <p class="note" id="ex-removed"></p>
 </section>
 
 <section>
@@ -387,7 +412,14 @@ const med=a=>{const b=a.filter(v=>v!=null).sort((x,y)=>x-y);const m=b.length>>1;
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 let GROUP='1';
 try{GROUP=localStorage.getItem('winners-group')||'1'}catch(e){}
-const GA=()=>GROUP==='all'?A:A.filter(r=>String(r.tier)===GROUP);
+const EX={};          // stock -> {stock, reason, note, at}: marked as not a winner
+const REMOVED=__REMOVED__;   // already removed from the study in the repo
+const EX_REASONS=['Takeover or corporate event','Price-only move (no earnings support)','Illiquid or operator-style','Bad data or wrong symbol','Other'];
+const exKey=s=>s.replace(/[^A-Za-z0-9_\-~:@]/g,c=>'+'+c.charCodeAt(0).toString(16));   // GVT&D -> GVT+26D
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let exDb=null,exMode='local';
+const GAall=()=>GROUP==='all'?A:A.filter(r=>String(r.tier)===GROUP);
+const GA=()=>GAall().filter(r=>!EX[r.stock]);
 const cnt=(k,g=GA())=>g.filter(r=>r.checks[k]===true).length;
 const has=(k,g=GA())=>g.filter(r=>r.checks[k]!=null).length;
 const recentListing=r=>C[r.stock]&&C[r.stock][0][0]>addDays(r.bo_date,-290);
@@ -427,7 +459,7 @@ function renderSummary(){
 function setGroup(gp){
  GROUP=gp;try{localStorage.setItem('winners-group',gp)}catch(e){}
  renderSummary();list();
- if(!GA().some(r=>r.stock===cur))select([...GA()].sort((a,b)=>b.calc_return-a.calc_return)[0].stock);
+ if(!GAall().some(r=>r.stock===cur))select([...GA()].sort((a,b)=>b.calc_return-a.calc_return)[0].stock);
 }
 document.querySelectorAll('[data-group]').forEach(b=>b.onclick=()=>setGroup(b.dataset.group));
 
@@ -437,8 +469,8 @@ const READ=__READ__;
 /* picker */
 let sortKey='ret',cur=null;
 function list(){
- const rows=[...GA()].sort((a,b)=>sortKey==='ret'?b.calc_return-a.calc_return:sortKey==='score'?(b.score-a.score||b.calc_return-a.calc_return):a.low_date.localeCompare(b.low_date));
- $('#plist').innerHTML=rows.map(r=>`<button class="pitem" role="listitem" data-s="${r.stock}" aria-current="${r.stock===cur}"><span>${r.stock}${GROUP==='all'&&r.tier===2?'<small class="t2">T2</small>':''}</span><span class="r">${sortKey==='score'?r.score+'/9':sortKey==='low'?fmtD(r.low_date):fmtPct(r.calc_return)}</span></button>`).join('');
+ const rows=[...GAall()].sort((a,b)=>(!!EX[a.stock]-!!EX[b.stock])||(sortKey==='ret'?b.calc_return-a.calc_return:sortKey==='score'?(b.score-a.score||b.calc_return-a.calc_return):a.low_date.localeCompare(b.low_date)));
+ $('#plist').innerHTML=rows.map(r=>`<button class="pitem${EX[r.stock]?' ex':''}" role="listitem" data-s="${r.stock}" aria-current="${r.stock===cur}" title="${EX[r.stock]?'Marked as not a winner':''}"><span>${r.stock}${GROUP==='all'&&r.tier===2?'<small class="t2">T2</small>':''}${EX[r.stock]?'<small class="t2">✕</small>':''}</span><span class="r">${sortKey==='score'?r.score+'/9':sortKey==='low'?fmtD(r.low_date):fmtPct(r.calc_return)}</span></button>`).join('');
  document.querySelectorAll('.pitem').forEach(b=>b.onclick=()=>select(b.dataset.s));
 }
 document.querySelectorAll('[data-sort]').forEach(b=>b.onclick=()=>{sortKey=b.dataset.sort;document.querySelectorAll('[data-sort]').forEach(x=>x.setAttribute('aria-pressed',x===b));list()});
@@ -786,6 +818,7 @@ function select(s){
  const vals={washout:'−'+Math.round(r.drawdown_into_low)+'%',rs_thrust:'+'+Math.round(r.rs_gain_low_to_bo)+' pts',higher_low:r.held_higher_low==null?'n/a':'',bo_volume:r.bo_vol_x+'×',accumulation:r.updown_vol+'',nh_trend:'',rs_new_high:'',earnings:'',liquidity:'₹'+liq+' cr'};
  $('#r-checks').innerHTML=CHK.map(([k,l])=>{const v=r.checks[k];const m=v===true?'<span class="m y">✓</span>':v===false?'<span class="m n">✗</span>':'<span class="m na">–</span>';return `<li>${m}<span>${l}</span><span class="val">${vals[k]||''}</span></li>`}).join('');
  $('#r-read').textContent=READ[s]||autoRead(r);
+ renderMark();
  $('#r-rs').innerHTML=rsStory(s).map(([k,v])=>`<li><span class="k">${k}</span><span>${v}</span></li>`).join('');
  const rows_=C[s],ND=notable(s);
  $('#r-days').innerHTML='<tr><th>Date</th><th>Stock</th><th>SC250</th><th>Excess</th><th>Vol</th><th>Read</th></tr>'+ND.map(d=>{const w=why(rows_,d.i,r);return `<tr class="dayrow" tabindex="0" data-i="${d.i}" title="${w.text.replace(/"/g,'')}"><td>${fmtD(rows_[d.i][0])}</td><td class="${d.s>=0?'pos':'neg'}">${fmtPct(d.s)}</td><td class="${d.m>=0?'pos':'neg'}">${fmtPct(d.m)}</td><td class="${d.ex>=0?'pos':'neg'}">${fmtPct(d.ex)}</td><td>${d.vx?d.vx.toFixed(1)+'×':'—'}</td><td><span class="wtag ${tagc(w.tag)}">${w.tag}</span></td></tr>`}).join('');
@@ -798,6 +831,63 @@ function select(s){
 }
 renderSummary();list();select([...GA()].sort((a,b)=>b.calc_return-a.calc_return)[0].stock);
 renderSummary();   // re-run now that the RS helpers exist
+
+/* ---- not-a-winner marks: shared page data (db) when available, else this browser ---- */
+function exLocalLoad(){try{return JSON.parse(localStorage.getItem('winners-excluded')||'{}')}catch(e){return {}}}
+function exLocalSave(){try{localStorage.setItem('winners-excluded',JSON.stringify(EX))}catch(e){}}
+function exReplace(obj){for(const k in EX)delete EX[k];Object.assign(EX,obj);exRefresh()}
+function exRefresh(){renderSummary();list();renderMark();renderExList()}
+async function exMark(s,reason,note){
+ const v={stock:s,reason,note:note.slice(0,300),at:new Date().toISOString()};
+ EX[s]=v;exRefresh();
+ if(exDb){try{await exDb.collection('exclusions').doc(exKey(s)).set(v)}catch(e){delete EX[s];exRefresh();exStatus(`Could not save the mark (${e&&e.code||'error'}). Try again.`)}}
+ else exLocalSave();
+}
+async function exUnmark(s){
+ const old=EX[s];delete EX[s];exRefresh();
+ if(exDb){try{await exDb.collection('exclusions').doc(exKey(s)).delete()}catch(e){EX[s]=old;exRefresh();exStatus(`Could not undo (${e&&e.code||'error'}). Try again.`)}}
+ else exLocalSave();
+}
+function exStatus(msg){$('#ex-status').textContent=msg||(exMode==='db'?'Marks are saved with this page: they follow you across devices and Claude can read them.':'Marks are saved in this browser only. Open the published page to share them with Claude.')}
+function renderMark(){
+ const box=$('#exbox');if(!box||!cur)return;const m=EX[cur];
+ if(m){box.innerHTML=`<div class="exon"><b>Marked as not a winner</b><span>${esc(m.reason)}${m.note?' · '+esc(m.note):''}</span><button class="exbtn" id="ex-undo" type="button">Undo</button></div>`;$('#ex-undo').onclick=()=>exUnmark(cur);return}
+ box.innerHTML=`<button class="exbtn" id="ex-open" type="button">Mark as not a winner</button>
+  <form class="exform" id="ex-form" hidden>
+   <label for="ex-reason">Reason</label><select id="ex-reason">${EX_REASONS.map(x=>`<option>${x}</option>`).join('')}</select>
+   <label for="ex-note">Note (optional)</label><input id="ex-note" maxlength="300" placeholder="e.g. Mahindra takeover, not a chart setup">
+   <div class="exrow"><button class="exbtn primary" type="submit">Mark</button><button class="exbtn" type="button" id="ex-cancel">Cancel</button></div>
+  </form>`;
+ $('#ex-open').onclick=()=>{$('#ex-form').hidden=false;$('#ex-open').hidden=true;$('#ex-reason').focus()};
+ $('#ex-cancel').onclick=()=>{$('#ex-form').hidden=true;$('#ex-open').hidden=false};
+ $('#ex-form').onsubmit=e=>{e.preventDefault();exMark(cur,$('#ex-reason').value,$('#ex-note').value.trim())};
+}
+function renderExList(){
+ const L=Object.values(EX).sort((a,b)=>String(b.at).localeCompare(String(a.at)));
+ $('#ex-table').innerHTML=L.length?'<tr><th>Stock</th><th>Tier</th><th>2025 move</th><th>Reason</th><th>Note</th><th>Marked</th><th></th></tr>'+L.map(m=>{const r=A.find(x=>x.stock===m.stock)||{};
+   return `<tr><td><button class="linkbtn" data-open="${esc(m.stock)}">${esc(m.stock)}</button></td><td>${r.tier||'—'}</td><td>${fmtPct(r.calc_return)}</td><td class="tdwrap">${esc(m.reason)}</td><td class="tdwrap">${esc(m.note)||'—'}</td><td class="muted">${fmtD(String(m.at).slice(0,10))}</td><td><button class="exbtn" data-undo="${esc(m.stock)}">Undo</button></td></tr>`}).join('')
+  :'<tr><td class="muted tdwrap">No stocks marked yet. Open a stock above and use “Mark as not a winner” in its Setup score panel.</td></tr>';
+ document.querySelectorAll('[data-undo]').forEach(b=>b.onclick=()=>exUnmark(b.dataset.undo));
+ document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{select(b.dataset.open);document.getElementById('bench-sec').scrollIntoView({behavior:'smooth'})});
+ $('#ex-copy').hidden=!L.length;
+ $('#ex-removed').textContent=REMOVED.length?`Already removed from the study for good (${REMOVED.length}): ${REMOVED.map(x=>x.stock+(x.reason?' ('+x.reason+')':'')).join(', ')}.`:'';
+}
+$('#ex-copy').onclick=async()=>{
+ const txt=['Stock\tReason\tNote'].concat(Object.values(EX).map(m=>`${m.stock}\t${m.reason}\t${m.note||''}`)).join('\n');
+ try{await navigator.clipboard.writeText(txt);$('#ex-copied').textContent='Copied.'}
+ catch(e){const ta=document.createElement('textarea');ta.value=txt;ta.style.width='100%';$('#ex-copied').textContent='Copy this text:';$('#ex-copied').after(ta);ta.select()}
+};
+Object.assign(EX,exLocalLoad());exStatus();exRefresh();
+(async()=>{
+ const db=window.claude&&window.claude.use?await window.claude.use('db'):null;
+ if(!db)return;                                          // standalone file or signed out: stay in this browser
+ exDb=db;exMode='db';exStatus('Loading saved marks…');
+ const timer=setTimeout(()=>exStatus('Saved marks cannot be reached yet; what you see may be out of date.'),10000);
+ db.collection('exclusions').onSnapshot(snap=>{
+  if(!snap.metadata.fromCache){clearTimeout(timer);exStatus()}
+  const o={};snap.docs.forEach(d=>{const v=d.data();if(v&&v.stock)o[v.stock]=v});exReplace(o);
+ },e=>{clearTimeout(timer);exDb=null;exMode='local';exReplace(exLocalLoad());exStatus('Saved marks are unavailable right now, so marks are kept in this browser only.')});
+})();
 function order(){return [...document.querySelectorAll('.pitem')].map(b=>b.dataset.s)}
 function step(d){const o=order(),k=o.indexOf(cur);select(o[(k+d+o.length)%o.length]);document.querySelector('.pitem[aria-current="true"]')?.scrollIntoView({block:'nearest'})}
 $('#prev').onclick=()=>step(-1);$('#next').onclick=()=>step(1);
