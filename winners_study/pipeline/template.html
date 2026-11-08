@@ -158,6 +158,8 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
 .gseg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .t2{font-size:9.5px;margin-left:6px;padding:1px 4px;border-radius:3px;background:var(--chip);color:var(--muted);vertical-align:1px}
 .pitem[aria-current="true"] .t2{background:rgba(255,255,255,.25);color:#fff}
+.indgrp{display:inline-flex;align-items:center;gap:6px}
+.indlab{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .ind button{display:inline-flex;align-items:center;gap:6px}
 .ind button i{display:inline-block;width:12px;height:3px;border-radius:2px}
 .seg.ind button[aria-pressed="true"]{background:var(--sheet);color:var(--ink)}
@@ -287,13 +289,19 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
         <button class="ic" id="next" aria-label="Next stock" title="Next stock (])">›</button>
       </div>
       <div class="ws-tools">
-        <div class="seg ind" role="group" aria-label="Show or hide moving averages">
-          <button data-ind="e10" aria-pressed="true" title="10-period EMA on the stock and the Smallcap 250"><i style="background:var(--ema10)"></i>EMA 10</button>
-          <button data-ind="e20" aria-pressed="true" title="20-period EMA on the stock and the Smallcap 250"><i style="background:var(--ema20)"></i>EMA 20</button>
+        <div class="indgrp"><span class="indlab">Stock</span>
+        <div class="seg ind" role="group" aria-label="Lines on the stock chart">
+          <button data-ind="e10" aria-pressed="true" title="10-period EMA on the stock"><i style="background:var(--ema10)"></i>EMA 10</button>
+          <button data-ind="e20" aria-pressed="true" title="20-period EMA on the stock"><i style="background:var(--ema20)"></i>EMA 20</button>
           <button data-ind="m50" aria-pressed="true" title="50-day simple average"><i style="background:var(--ma50)"></i>50</button>
           <button data-ind="m200" aria-pressed="true" title="200-day simple average"><i style="background:var(--ma200)"></i>200</button>
+        </div></div>
+        <div class="indgrp"><span class="indlab">Index</span>
+        <div class="seg ind" role="group" aria-label="Lines on the Smallcap 250 chart">
+          <button data-ind="ie10" aria-pressed="true" title="10-period EMA on the Smallcap 250"><i style="background:var(--ema10)"></i>EMA 10</button>
+          <button data-ind="ie20" aria-pressed="true" title="20-period EMA on the Smallcap 250"><i style="background:var(--ema20)"></i>EMA 20</button>
           <button data-ind="rg" aria-pressed="true" title="Market regime on the Smallcap 250: green above EMA 10 and 20, red below both, amber mixed. A marker shows each change, confirmed by 2 closes."><i style="background:linear-gradient(90deg,var(--up) 0 33%,var(--amber) 33% 66%,var(--down) 66% 100%)"></i>Regime</button>
-        </div>
+        </div></div>
         <div class="seg" role="group" aria-label="Chart range">
           <button id="v-setup" aria-pressed="true">Setup</button>
           <button id="v-full" aria-pressed="false">Whole move</button>
@@ -332,7 +340,7 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
     <div class="readout" id="readout" hidden></div>
     <div class="ws-foot">
       <div class="timeline" id="timeline"></div>
-      <div class="keys"><span><i style="background:var(--ema10)"></i>EMA 10</span><span><i style="background:var(--ema20)"></i>EMA 20</span><span><i style="background:var(--ma50)"></i>50 DMA</span><span><i style="background:var(--ma200)"></i>200 DMA</span><span><i style="background:var(--accent);opacity:.6"></i>Pre-breakout range</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Q = result (est.): green if net profit YoY ≥ 0, red if negative</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Nifty Smallcap 250 (candles, with EMA 10/20)</span><span><i style="background:linear-gradient(90deg,var(--up) 0 33%,var(--amber) 33% 66%,var(--down) 66% 100%)"></i>Market regime (ribbon under the index): ▲ uptrend = above EMA 10 and 20 · ● mixed · ▼ downtrend = below both; a marker shows each change, confirmed by 2 closes</span></div>
+      <div class="keys"><span><i style="background:var(--ema10)"></i>EMA 10</span><span><i style="background:var(--ema20)"></i>EMA 20</span><span><i style="background:var(--ma50)"></i>50 DMA</span><span><i style="background:var(--ma200)"></i>200 DMA</span><span><i style="background:var(--accent);opacity:.6"></i>Pre-breakout range</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Q = result (est.): green if net profit YoY ≥ 0, red if negative</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Nifty Smallcap 250 (candles; its EMA 10/20 toggle separately)</span><span><i style="background:linear-gradient(90deg,var(--up) 0 33%,var(--amber) 33% 66%,var(--down) 66% 100%)"></i>Market regime (ribbon under the index): ▲ uptrend = above EMA 10 and 20 · ● mixed · ▼ downtrend = below both; a marker shows each change, confirmed by 2 closes</span></div>
     </div>
   </div>
   <div class="info3">
@@ -741,10 +749,10 @@ function ema(v,n){const k=2/(n+1),o=[];let e=null,c=0,s=0;
  for(const x of v){if(x==null){o.push(e);continue}
   if(e==null){s+=x;c++;if(c===n)e=s/n;o.push(e)}else{e=x*k+e*(1-k);o.push(e)}}
  return o}
-const IND={e10:true,e20:true,m50:true,m200:true,rg:true};
+const IND={e10:true,e20:true,m50:true,m200:true,ie10:true,ie20:true,rg:true};
 try{Object.assign(IND,JSON.parse(localStorage.getItem('winners-ind')||'{}'))}catch(e){}
 function applyInd(){
- if(S.e10){S.e10.applyOptions({visible:IND.e10});S.e20.applyOptions({visible:IND.e20});S.m50.applyOptions({visible:IND.m50});S.m200.applyOptions({visible:IND.m200});S.ie10.applyOptions({visible:IND.e10});S.ie20.applyOptions({visible:IND.e20});S.rg.applyOptions({visible:IND.rg});if(S.ixMk&&!IND.rg)S.ixMk.setMarkers([])}
+ if(S.e10){S.e10.applyOptions({visible:IND.e10});S.e20.applyOptions({visible:IND.e20});S.m50.applyOptions({visible:IND.m50});S.m200.applyOptions({visible:IND.m200});S.ie10.applyOptions({visible:IND.ie10});S.ie20.applyOptions({visible:IND.ie20});S.rg.applyOptions({visible:IND.rg});if(S.ixMk&&!IND.rg)S.ixMk.setMarkers([])}
  document.querySelectorAll('[data-ind]').forEach(b=>b.setAttribute('aria-pressed',!!IND[b.dataset.ind]));
 }
 document.querySelectorAll('[data-ind]').forEach(b=>b.onclick=()=>{
