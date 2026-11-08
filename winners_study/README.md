@@ -57,7 +57,7 @@ Each stock's tier comes from its actual low-to-high move in the year, measured o
    - `prior_low_window` and `retest_window`: the main low and the later retest.
 3. Run all steps with a fresh Dhan token.
 4. Optional: add a one-line read per stock in `notes/<year>.json`. The build lists any stocks without one, and the page shows a summary generated from the data for those stocks.
-5. The narrative text in `pipeline/template.html` is written for 2025: the thesis, the scan-rule figures and the red-flag examples. Review and rewrite it for the new year. Everything else on the page is computed from the data.
+5. The thesis, the five-step sequence, the hit rates and the scan-rule figures are computed from the data. Only the red-flag examples and the "7-Apr" retest wording in `pipeline/template.html` are written for 2025; rewrite them for the new year.
 
 ## Definitions
 
