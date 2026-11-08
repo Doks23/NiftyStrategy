@@ -15,8 +15,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--year", type=int, required=True)
     ap.add_argument("--steps", default="dhan,screener,analyze,build")
+    ap.add_argument("--refresh", action="store_true", help="re-download data already in cache/")
     a = ap.parse_args()
-    cfg = load_config(a.year)
+    cfg = load_config(a.year); cfg["refresh"] = a.refresh
     for s in a.steps.split(","):
         print(f"[{s}]"); STEPS[s](cfg)
 
