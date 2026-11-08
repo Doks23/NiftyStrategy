@@ -1,0 +1,11 @@
+{
+  "year": 2025,
+  "input_csv": "inputs/winners_2025.csv",
+  "return_col": "Maximum Potential Return(%) in 2025",
+  "notes": "notes/2025.json",
+  "index_security_id": "3",
+  "index_name": "Nifty Smallcap 250",
+  "retest_window": ["2025-04-01", "2025-04-09"],
+  "prior_low_window": ["2025-01-01", "2025-03-31"],
+  "index_low_window": ["2025-01-01", "2025-04-30"]
+}

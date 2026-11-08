@@ -1,0 +1,652 @@
+<title>2025 Winners Playbook</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<script src="https://unpkg.com/lightweight-charts@5.0.8/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+/* Layout: a research notebook — thesis strip, then the five-stage pattern, then a stock-by-stock chart bench with a facts rail. */
+:root{
+  --paper:#f3f5f7; --sheet:#ffffff; --ink:#16202c; --muted:#5b6876; --rule:#d9dfe6; --grid:#eceff3;
+  --up:#13856b; --down:#c2453a; --up-a:rgba(19,133,107,.35); --down-a:rgba(194,69,58,.35);
+  --accent:#1f5fbf; --amber:#b7791f; --rs:#7a4cc2; --ma50:#1f5fbf; --ma200:#b7791f;
+  --good:#13856b; --bad:#c2453a; --chip:#e7ecf2;
+  --f-display:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0f141a; --sheet:#151c24; --ink:#e3e8ee; --muted:#93a0ae; --rule:#26313d; --grid:#1d2630;
+  --up:#2fb391; --down:#e0695d; --up-a:rgba(47,179,145,.35); --down-a:rgba(224,105,93,.35);
+  --accent:#6aa3ff; --amber:#e0a84a; --rs:#b08cf0; --ma50:#6aa3ff; --ma200:#e0a84a;
+  --good:#2fb391; --bad:#e0695d; --chip:#1f2833; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0f141a; --sheet:#151c24; --ink:#e3e8ee; --muted:#93a0ae; --rule:#26313d; --grid:#1d2630;
+  --up:#2fb391; --down:#e0695d; --up-a:rgba(47,179,145,.35); --down-a:rgba(224,105,93,.35);
+  --accent:#6aa3ff; --amber:#e0a84a; --rs:#b08cf0; --ma50:#6aa3ff; --ma200:#e0a84a;
+  --good:#2fb391; --bad:#e0695d; --chip:#1f2833; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px;display:flex;flex-direction:column;gap:40px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1{font-size:clamp(28px,4.4vw,44px);font-weight:800;line-height:1.05}
+h2{font-size:22px;font-weight:700}
+h3{font-size:15px;font-weight:700}
+p{margin:0;max-width:68ch}
+.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+header{display:flex;flex-direction:column;gap:12px}
+.thesis{font-size:18px;max-width:72ch}
+.thesis b{font-weight:600}
+.facts{display:flex;flex-wrap:wrap;gap:8px 20px;font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+section{display:flex;flex-direction:column;gap:16px}
+.sec-head{display:flex;flex-direction:column;gap:6px}
+
+/* stages */
+.stages{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;border:1px solid var(--rule);border-radius:8px;background:var(--sheet);overflow:hidden}
+.stage{padding:16px;display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--rule);min-width:0}
+.stage:last-child{border-right:0}
+.stage .n{font-family:var(--f-mono);font-size:11px;color:var(--accent)}
+.stage .big{font-family:var(--f-display);font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+.stage p{font-size:13.5px;color:var(--muted)}
+@media (max-width:900px){.stages{grid-template-columns:1fr}.stage{border-right:0;border-bottom:1px solid var(--rule)}.stage:last-child{border-bottom:0}}
+
+/* scorecard */
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px}
+@media (max-width:900px){.two{grid-template-columns:1fr}}
+.panel{background:var(--sheet);border:1px solid var(--rule);border-radius:8px;padding:18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.bars{display:flex;flex-direction:column;gap:9px}
+.bar{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) 52px;gap:10px;align-items:center;font-size:13.5px}
+.bar .track{height:10px;background:var(--grid);border-radius:2px;overflow:hidden}
+.bar .fill{height:100%;background:var(--accent)}
+.bar .v{font-family:var(--f-mono);font-size:12px;text-align:right}
+.note{font-size:13px;color:var(--muted)}
+
+/* anatomy */
+.anat{display:flex;flex-direction:column;gap:3px}
+.arow{display:grid;grid-template-columns:96px minmax(0,1fr) 56px;gap:10px;align-items:center;font-size:12px;cursor:pointer;padding:2px 4px;border-radius:4px;border:0;background:none;color:inherit;text-align:left;font-family:inherit}
+.arow:hover,.arow:focus-visible{background:var(--chip);outline:none}
+.arow .seg{display:flex;height:12px;min-width:0}
+.arow .seg span{display:block;height:100%}
+.s1{background:var(--muted);opacity:.45}.s2{background:var(--accent);opacity:.75}.s3{background:var(--up)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:10px;margin-right:6px;vertical-align:-1px;border-radius:2px}
+
+/* bench */
+.bench{display:grid;grid-template-columns:180px minmax(0,1fr) 330px;gap:16px;align-items:start}
+@media (max-width:1100px){.bench{grid-template-columns:minmax(0,1fr) 300px}.picker{grid-column:1/-1}}
+@media (max-width:760px){.bench{grid-template-columns:1fr}}
+.picker{display:flex;flex-direction:column;gap:8px;min-width:0}
+.picker select{display:none}
+.plist{display:flex;flex-direction:column;gap:2px;max-height:640px;overflow:auto;border:1px solid var(--rule);border-radius:8px;background:var(--sheet);padding:4px}
+.pitem{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;padding:6px 8px;border-radius:5px;cursor:pointer;border:0;background:none;color:inherit;text-align:left;font-family:var(--f-mono);font-size:12.5px}
+.pitem:hover,.pitem:focus-visible{background:var(--chip);outline:none}
+.pitem[aria-current="true"]{background:var(--accent);color:#fff}
+.pitem .r{opacity:.8}
+@media (max-width:1100px){.plist{flex-direction:row;flex-wrap:wrap;max-height:none}.pitem{grid-template-columns:auto}.pitem .r{display:none}}
+.sortbar{display:flex;gap:6px;flex-wrap:wrap}
+.btn{font-family:var(--f-mono);font-size:11.5px;padding:5px 9px;border-radius:5px;border:1px solid var(--rule);background:var(--sheet);color:var(--ink);cursor:pointer}
+.btn[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.chartcard{background:var(--sheet);border:1px solid var(--rule);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.ctop{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:baseline}
+.ctop h2{font-size:26px}
+#chart{height:520px;width:100%}
+@media (max-width:760px){#chart{height:420px}}
+.keys{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted)}
+.keys i{display:inline-block;width:14px;height:3px;margin-right:6px;vertical-align:3px}
+.timeline{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border-top:1px solid var(--rule);padding-top:10px}
+.tl{display:flex;flex-direction:column;gap:2px;padding-right:8px;min-width:0}
+.tl .k{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.tl .d{font-family:var(--f-mono);font-size:13px}
+.tl .x{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+@media (max-width:520px){.timeline{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:10px}}
+.replay{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.rp-ctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.rp-ctl[hidden]{display:none!important}
+.rp-main[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.rp-lab{font-family:var(--f-mono);font-size:11px;color:var(--muted);margin-left:6px;display:inline-flex;gap:4px;align-items:center}
+#rp-slider{width:100%;accent-color:var(--accent)}
+.readout{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-family:var(--f-mono);font-size:12px;padding:8px;border:1px dashed var(--rule);border-radius:6px}
+.readout .dt{font-weight:600;margin-right:6px}
+.flag{padding:2px 7px;border-radius:999px;background:var(--chip);color:var(--muted)}
+.flag.on{color:var(--good);font-weight:600}
+.flag.off{color:var(--muted)}
+.flag.hot{background:var(--accent);color:#fff}
+.rail{display:flex;flex-direction:column;gap:12px;min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-family:var(--f-mono);font-size:11px;padding:3px 8px;border-radius:999px;background:var(--chip)}
+.chip.good{color:var(--good)}.chip.bad{color:var(--bad)}
+.checks{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+.checks li{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:8px;font-size:13px;align-items:baseline}
+.checks .m{font-family:var(--f-mono);font-weight:600}
+.checks .y{color:var(--good)}.checks .n{color:var(--bad)}.checks .na{color:var(--muted)}
+.checks .val{font-family:var(--f-mono);font-size:11.5px;color:var(--muted)}
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{padding:5px 6px;text-align:right;border-bottom:1px solid var(--rule);font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-weight:600;color:var(--muted);font-size:11px}
+.pos{color:var(--good)}.neg{color:var(--bad)}
+.score{font-family:var(--f-display);font-size:30px;font-weight:800}
+.read{font-size:14px}
+
+/* scanner */
+.rules{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:760px){.rules{grid-template-columns:1fr}}
+.rules ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1px 5px;border-radius:3px}
+.caveats{font-size:13.5px;color:var(--muted);display:flex;flex-direction:column;gap:6px;max-width:80ch}
+.caveats ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* ---- workstation ---- */
+.wrap{max-width:1520px}
+.ws{background:var(--sheet);border:1px solid var(--rule);border-radius:8px;overflow:hidden;display:flex;flex-direction:column}
+.ws button,.ws select{font-family:var(--f-mono);font-size:12px;color:var(--ink);background:transparent;border:0;cursor:pointer}
+.ws button:focus-visible,.ws select:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.ws-bar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--rule)}
+.ws-id{display:flex;align-items:center;gap:6px;min-width:0}
+.ic{width:30px;height:30px;border-radius:6px!important;font-size:18px!important;line-height:1}
+.ic:hover{background:var(--chip)!important}
+.ws-name{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;min-width:0}
+.ws-name .tk{font-family:var(--f-display);font-weight:800;font-size:22px;letter-spacing:-.01em}
+.ws-name .ret{font-family:var(--f-mono);font-weight:600;color:var(--good);font-size:14px}
+.ws-name .ind{font-family:var(--f-mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.ws-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:6px;overflow:hidden}
+.seg button{padding:6px 10px;border-right:1px solid var(--rule)!important}
+.seg button:last-child{border-right:0!important}
+.seg button:hover{background:var(--chip)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.rp-main{padding:7px 12px!important;border-radius:6px;border:1px solid var(--accent)!important;color:var(--accent)!important;font-weight:600}
+.rp-main[aria-pressed="true"]{background:var(--accent)!important;color:#fff!important}
+.ws-rp{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--rule);background:var(--paper)}
+.ws-rp[hidden]{display:none!important}
+.ws-rp select{border:1px solid var(--rule)!important;border-radius:6px;padding:5px 6px;background:var(--sheet)!important}
+#rp-slider{flex:1 1 220px;min-width:140px;accent-color:var(--accent);width:auto}
+.chk{font-family:var(--f-mono);font-size:11.5px;color:var(--muted);display:inline-flex;gap:5px;align-items:center}
+.ws-body{display:grid;grid-template-columns:170px minmax(0,1fr);min-height:0}
+.wl{border-right:1px solid var(--rule);display:flex;flex-direction:column;min-width:0}
+.wl-sort{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--rule)}
+.wl-sort button{padding:7px 0;font-size:11px!important;color:var(--muted)!important}
+.wl-sort button[aria-pressed="true"]{color:var(--ink)!important;box-shadow:inset 0 -2px 0 var(--accent)}
+.ws .plist{border:0;border-radius:0;background:transparent;padding:4px;max-height:none;height:clamp(560px,74vh,880px);overflow:auto;flex-direction:column;flex-wrap:nowrap}
+.ws .pitem{grid-template-columns:minmax(0,1fr) auto;padding:6px 8px;font-size:12px}
+.ws .pitem .r{display:inline}
+.ws-chart{position:relative;min-width:0}
+#chart{height:clamp(560px,74vh,880px);width:100%}
+.legend-ohlc{position:absolute;top:6px;left:10px;z-index:3;pointer-events:none;font-family:var(--f-mono);font-size:11.5px;display:flex;flex-wrap:wrap;gap:4px 12px;max-width:calc(100% - 90px);font-variant-numeric:tabular-nums}
+.legend-ohlc b{font-weight:600}
+.legend-ohlc .lb{color:var(--muted)}
+.ws .readout{border:0;border-top:1px solid var(--rule);border-radius:0;padding:8px 10px;background:var(--paper)}
+.ws-foot{display:flex;flex-direction:column;gap:10px;padding:10px;border-top:1px solid var(--rule)}
+.ws-foot .timeline{border-top:0;padding-top:0}
+.info3{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:1000px){.info3{grid-template-columns:1fr}}
+@media (max-width:820px){
+ .ws-body{grid-template-columns:1fr}
+ .wl{border-right:0;border-bottom:1px solid var(--rule)}
+ .ws .plist{height:auto;max-height:none;flex-direction:row;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin}
+ .ws .pitem{flex:0 0 auto}
+ .legend-ohlc{font-size:10.5px;gap:2px 8px}
+ .ws .pitem .r{display:none}
+ #chart{height:min(70vh,560px)}
+}
+.why{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-top:1px solid var(--rule);font-size:13.5px;min-height:38px}
+.why:empty{display:none}
+.wtag{font-family:var(--f-mono);font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:4px;background:var(--chip);white-space:nowrap;flex:0 0 auto}
+.t-up{background:var(--up);color:#fff}
+.t-dn{background:var(--down);color:#fff}
+.t-pm{background:var(--amber);color:#fff}
+.t-mk{background:var(--chip);color:var(--ink);box-shadow:inset 0 0 0 1px var(--rule)}
+.info2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:16px;align-items:start}
+@media (max-width:1000px){.info2{grid-template-columns:1fr}}
+.rsl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;font-size:14px}
+.rsl li{display:grid;grid-template-columns:130px minmax(0,1fr);gap:10px}
+.rsl .k{font-family:var(--f-mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--rs);padding-top:2px}
+@media (max-width:520px){.rsl li{grid-template-columns:1fr;gap:2px}}
+.dayrow{cursor:pointer}.dayrow:hover td,.dayrow:focus-visible td{background:var(--chip)}
+.dayrow:focus-visible{outline:2px solid var(--accent)}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">NSE · Yearly winners · 2025 · Pilot study</div>
+  <h1>2025 Winners Playbook</h1>
+  <p class="thesis">32 stocks gained 200–833% from their 2025 low to their 2025 high. <b>All 32 made their 2025 low between January and April, during the smallcap crash.</b> Before the big move, they beat the index off the low, broke above their 50-day high on heavy volume, and then reclaimed their 52-week high. That last step is the safest entry, and the median stock still had <b>+60%</b> left after it.</p>
+  <div class="facts"><span>Prices: Dhan daily (split-adjusted)</span><span>Benchmark: Nifty Smallcap 250</span><span>Results: Screener.in quarterly</span><span>Window: Jan-2024 → Mar-2026</span></div>
+</header>
+
+<section>
+  <div class="sec-head"><div class="eyebrow">The sequence, in order</div><h2>How a 2025 winner looked before it ran</h2></div>
+  <div class="stages" id="stages"></div>
+</section>
+
+<section class="two">
+  <div class="panel">
+    <div class="sec-head"><div class="eyebrow">Signal hit rate</div><h3>How many of the 32 showed each signal</h3></div>
+    <div class="bars" id="bars"></div>
+    <p class="note">These rates show what winners looked like. They are not win rates, because only winners were tested. The classic volume dry-up just before a breakout was rare: in 2025 most bases were V-shaped recoveries, not long, tight consolidations.</p>
+  </div>
+  <div class="panel">
+    <div class="sec-head"><div class="eyebrow">Where the return came from</div><h3>Each move split into three legs (log scale)</h3></div>
+    <div class="legend"><span><i class="s1"></i>Low → breakout</span><span><i class="s2"></i>Breakout → 52-week-high reclaim</span><span><i class="s3"></i>Reclaim → top</span></div>
+    <div class="anat" id="anat"></div>
+    <p class="note">Click a row to open its chart. The green leg is what you could still capture after the most confirmed entry.</p>
+  </div>
+</section>
+
+<section id="bench-sec">
+  <div class="sec-head"><div class="eyebrow">Chart workstation</div><h2>Stock by stock</h2><p class="muted">Opens on the setup window. <b>Replay</b> steps through one candle at a time with the future hidden: ← → for a single bar, space to play or pause. Use [ and ] to move to the previous or next stock. Drag the pane dividers to resize.</p></div>
+  <div class="ws">
+    <div class="ws-bar">
+      <div class="ws-id">
+        <button class="ic" id="prev" aria-label="Previous stock" title="Previous stock ([)">‹</button>
+        <div class="ws-name"><span class="tk" id="c-name"></span><span class="ret" id="c-ret"></span><span class="ind" id="c-ind"></span></div>
+        <button class="ic" id="next" aria-label="Next stock" title="Next stock (])">›</button>
+      </div>
+      <div class="ws-tools">
+        <div class="seg" role="group" aria-label="Chart range">
+          <button id="v-setup" aria-pressed="true">Setup</button>
+          <button id="v-full" aria-pressed="false">Whole move</button>
+        </div>
+        <button class="rp-main" id="rp-toggle" aria-pressed="false">▶ Replay</button>
+      </div>
+    </div>
+    <div class="ws-rp" id="rp-ctl" hidden>
+      <div class="seg">
+        <button id="rp-back" aria-label="Back one bar" title="Back one bar (←)">◀</button>
+        <button id="rp-play" title="Play / pause (space)">Play</button>
+        <button id="rp-fwd" aria-label="Forward one bar" title="Forward one bar (→)">▶</button>
+      </div>
+      <select id="rp-speed" aria-label="Replay speed"><option value="450">0.5×</option><option value="160" selected>1×</option><option value="50">3×</option></select>
+      <input type="range" id="rp-slider" min="0" max="1" value="0" aria-label="Replay position">
+      <div class="seg" role="group" aria-label="Jump to">
+        <button data-jump="start">Start</button><button data-jump="low">Low</button><button data-jump="bo">BO</button><button data-jump="nh">52wH</button><button data-jump="top">Top</button>
+      </div>
+      <label class="chk"><input type="checkbox" id="rp-blind"> Hide labels</label>
+    </div>
+    <div class="ws-body">
+      <aside class="wl">
+        <div class="wl-sort" role="group" aria-label="Sort stocks">
+          <button data-sort="ret" aria-pressed="true">Return</button><button data-sort="score" aria-pressed="false">Score</button><button data-sort="low" aria-pressed="false">Low</button>
+        </div>
+        <div class="plist" id="plist" role="list"></div>
+      </aside>
+      <div class="ws-chart">
+        <div class="legend-ohlc" id="legend"></div>
+        <div id="chart"></div>
+      </div>
+    </div>
+    <div class="why" id="why" aria-live="polite"></div>
+    <div class="readout" id="readout" hidden></div>
+    <div class="ws-foot">
+      <div class="timeline" id="timeline"></div>
+      <div class="keys"><span><i style="background:var(--ma50)"></i>50 DMA</span><span><i style="background:var(--ma200)"></i>200 DMA</span><span><i style="background:var(--accent);opacity:.6"></i>Pre-breakout range</span><span><i style="background:var(--amber)"></i>Q = result (est.)</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Nifty Smallcap 250 (OHLC bars)</span></div>
+    </div>
+  </div>
+  <div class="info3">
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><h3>Setup score</h3><div><span class="score" id="r-score"></span><span class="muted mono"> / 9</span></div></div>
+      <div class="chips" id="r-chips"></div>
+      <ul class="checks" id="r-checks"></ul>
+    </div>
+    <div class="panel"><h3>Read</h3><p class="read" id="r-read"></p></div>
+    <div class="panel"><h3>Quarterly results (YoY)</h3><div class="tbl-wrap"><table id="r-earn"></table></div><p class="note">Result date = quarter end + 45 days (+60 for March), the SEBI deadline. Actual dates are often earlier. “TA” = loss → profit. During replay, quarters not yet reported are faded.</p></div>
+  </div>
+  <div class="info2">
+    <div class="panel"><h3>Relative-strength story</h3><ul class="rsl" id="r-rs"></ul><p class="note">Relative strength = stock price ÷ Nifty Smallcap 250, so it rises whenever the stock beats the index, even on days when both fall. This panel uses that ratio; the chart no longer draws it.</p></div>
+    <div class="panel"><h3>Big days: market or stock?</h3><div class="tbl-wrap"><table id="r-days"></table></div><p class="note">The biggest moves from 4 months before the low through the 52-week-high reclaim, plus days when the stock rose while the index fell 1.5% or more. Excess = stock % − Smallcap 250 %. Click a row to jump the chart to that day.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><div class="eyebrow">Turn it into a scan</div><h2>Draft screening rules from the 2025 pattern</h2></div>
+  <div class="rules">
+    <div class="panel"><h3>Watchlist: during a market correction</h3><ol>
+      <li>Smallcap 250 is ≥15% off its high (the 2025 drawdown was ~25%).</li>
+      <li>The stock is ≥30% off its 52-week high (median winner: −48%).</li>
+      <li>On the index's retest low, the stock holds a <b>higher low</b> (21 of 29 with enough history).</li>
+      <li>Median daily turnover ≥ ₹1 cr. Below that, fills and exits are hard (17 of 32 failed this).</li>
+    </ol></div>
+    <div class="panel"><h3>Trigger: the first entry</h3><ol>
+      <li>The stock is ≥15 points ahead of the index since its low (median: +37).</li>
+      <li>It closes above its highest high of the last 50 sessions on ≥2× the 50-day average volume (27 of 32).</li>
+      <li>Up-day volume beats down-day volume over the prior 50 sessions (26 of 32).</li>
+      <li>Typical timing: about 45 days after the low, with ~45% already gained off the low.</li>
+    </ol></div>
+    <div class="panel"><h3>Confirmation: add or enter late</h3><ol>
+      <li>It closes above its 52-week high (30 of 32 did), at a median 3× volume.</li>
+      <li>Close above the 50-day average, which is above the 200-day, with the RS line at a 52-week high (25 of 30).</li>
+      <li>The latest quarter shows net profit +25% YoY or a loss-to-profit turn (25 of 32 had one of these).</li>
+    </ol></div>
+    <div class="panel"><h3>Red flags seen in the winners anyway</h3><ol>
+      <li>Price ran ahead of earnings: CUPID's results were weak when it broke out, and the profit growth came 2–3 quarters later.</li>
+      <li>Moves on corporate events, not earnings: SMLMAH (takeover by Mahindra) and JINDALPHOT (holding company).</li>
+      <li>Falling earnings with rising price, which can look like operator activity: SINDHUTRAD, AAREYDRUGS. Track these, but size them small.</li>
+    </ol></div>
+  </div>
+</section>
+
+<section class="caveats">
+  <div class="eyebrow">Method and limits</div>
+  <ul>
+    <li><b>Move</b> = the largest rise from a 2025 low to a later 2025 high. It matches the input file for 30 of 32 stocks; SMLMAH and SILGO differ, probably because the file used a different price basis.</li>
+    <li><b>Breakout</b> = the first close after the low above the prior 50-session high, on ≥1.5× the 50-day average volume. <b>Reclaim</b> = the first close above the prior 250-session high.</li>
+    <li><b>RS</b> = stock close ÷ Nifty Smallcap 250 close, scaled to 100. QPOWER, BHARATSE and KMEW have short histories, so some long-average checks show as n/a.</li>
+    <li>Winners only. There is no comparison group, so a hit rate here does not show how often the setup works.</li>
+    <li>Earnings come from Screener's quarterly table (consolidated where available). Result dates are estimated.</li>
+  </ul>
+</section>
+</div>
+
+<script>
+const A=__DATA__;
+const C=__CHARTS__;
+const $=s=>document.querySelector(s);
+const fmtPct=v=>v==null?'—':(v>0?'+':'')+(Math.abs(v)>=100?Math.round(v):v.toFixed(1))+'%';
+const fmtD=d=>{if(!d)return '—';const x=new Date(d+'T00:00:00');return x.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'})};
+const med=a=>{const b=a.filter(v=>v!=null).sort((x,y)=>x-y);const m=b.length>>1;return b.length%2?b[m]:(b[m-1]+b[m])/2};
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const N=A.length;
+const cnt=k=>A.filter(r=>r.checks[k]===true).length;
+const archetype=r=>r.stock==='QPOWER'?'Post-IPO base':r.bo_gap>=5?'Gap breakout':r.days_low_to_bo<=30?'V-reversal':'Base → breakout';
+
+/* stages */
+const stages=[
+ ['01','Washout',fmtPct(-med(A.map(r=>r.drawdown_into_low))),`Median fall from the 52-week high into the 2025 low. ${A.filter(r=>r.low_date>='__IXLO_FROM__'&&r.low_date<='__IXLO_TO__').length} of ${N} bottomed between Jan and Apr 2025, alongside the index.`],
+ ['02','Relative-strength thrust','+'+Math.round(med(A.map(r=>r.rs_gain_low_to_bo)))+' pts',`Median lead over the Smallcap 250 from the low to the breakout. All ${N} were ahead. ${cnt('higher_low')} of ${A.filter(r=>r.checks.higher_low!=null).length} held a higher low when the index retested on 7-Apr.`],
+ ['03','Breakout above 50-day high',Math.round(med(A.map(r=>r.days_low_to_bo)))+' days',`Median time after the low. ${cnt('bo_volume')} of ${N} broke out on ≥2× volume. Already ${fmtPct(med(A.map(r=>r.gained_before_bo)))} off the low, with ${fmtPct(med(A.map(r=>r.bo_to_high)))} still to come.`],
+ ['04','Reclaim 52-week high',fmtPct(med(A.map(r=>r.nh_to_high))),`Median gain still left after the reclaim. ${A.filter(r=>r.nh_date).length} of ${N} reclaimed, at a median ${med(A.map(r=>r.nh_vol_x))}× volume. The trend and RS were at highs in ${cnt('nh_trend')} of them.`],
+ ['05','Earnings catch up',A.filter(r=>r.earn_type!=='Weak / none').length+' / '+N,`${A.filter(r=>r.earn_type==='Accelerating').length} had accelerating profits and ${A.filter(r=>r.earn_type==='Turnaround').length} were turnarounds. In several, the strongest quarters were reported after the move had started.`]];
+$('#stages').innerHTML=stages.map(s=>`<div class="stage"><div class="n">${s[0]}</div><h3>${s[1]}</h3><div class="big">${s[2]}</div><p>${s[3]}</p></div>`).join('');
+
+/* bars */
+const CHK=[['washout','Fell ≥30% into the low'],['rs_thrust','Beat index ≥15 pts, low → breakout'],['bo_volume','Breakout volume ≥2× average'],['accumulation','Up-volume > down-volume (50 days)'],['nh_trend','Trend aligned at 52-week-high reclaim'],['rs_new_high','RS at 52-week high at reclaim'],['earnings','Earnings acceleration or turnaround'],['higher_low','Higher low on the 7-Apr index retest'],['liquidity','Turnover ≥ ₹1 cr per day']];
+$('#bars').innerHTML=CHK.map(([k,l])=>{const c=cnt(k),d=A.filter(r=>r.checks[k]!=null).length;return `<div class="bar"><span>${l}</span><span class="track"><span class="fill" style="width:${c/d*100}%;display:block"></span></span><span class="v">${c}/${d}</span></div>`}).join('');
+
+/* anatomy */
+const ln=x=>Math.log(x);
+const maxL=Math.max(...A.map(r=>ln(1+r.calc_return/100)));
+function anat(){
+ const rows=[...A].sort((a,b)=>b.calc_return-a.calc_return);
+ $('#anat').innerHTML=rows.map(r=>{
+  const tot=ln(1+r.calc_return/100), a1=ln(1+r.gained_before_bo/100);
+  const a3=r.nh_to_high!=null?ln(1+r.nh_to_high/100):0;const a2=Math.max(0,tot-a1-a3);
+  const w=v=>(v/maxL*100).toFixed(2)+'%';
+  return `<button class="arow" data-s="${r.stock}" aria-label="Open ${r.stock}"><span class="mono">${r.stock}</span><span class="seg"><span class="s1" style="width:${w(a1)}"></span><span class="s2" style="width:${w(a2)}"></span><span class="s3" style="width:${w(a3)}"></span></span><span class="mono" style="text-align:right">${fmtPct(r.calc_return)}</span></button>`}).join('');
+ document.querySelectorAll('.arow').forEach(b=>b.onclick=()=>{select(b.dataset.s);document.getElementById('bench-sec').scrollIntoView({behavior:'smooth'})});
+}
+anat();
+
+/* read notes */
+const READ=__READ__;
+
+/* picker */
+let sortKey='ret',cur=A[0].stock;
+function list(){
+ const rows=[...A].sort((a,b)=>sortKey==='ret'?b.calc_return-a.calc_return:sortKey==='score'?(b.score-a.score||b.calc_return-a.calc_return):a.low_date.localeCompare(b.low_date));
+ $('#plist').innerHTML=rows.map(r=>`<button class="pitem" role="listitem" data-s="${r.stock}" aria-current="${r.stock===cur}"><span>${r.stock}</span><span class="r">${sortKey==='score'?r.score+'/9':sortKey==='low'?fmtD(r.low_date):fmtPct(r.calc_return)}</span></button>`).join('');
+ document.querySelectorAll('.pitem').forEach(b=>b.onclick=()=>select(b.dataset.s));
+}
+document.querySelectorAll('[data-sort]').forEach(b=>b.onclick=()=>{sortKey=b.dataset.sort;document.querySelectorAll('[data-sort]').forEach(x=>x.setAttribute('aria-pressed',x===b));list()});
+
+/* chart + bar replay (multi-pane) */
+let chart=null,view='setup',S={},rp={on:false,i:0,timer:null};
+const LC=()=>window.LightweightCharts;
+function snap(rows,d){for(const r of rows)if(r[0]>=d)return r[0];return null}
+function idxOf(rows,d){for(let k=0;k<rows.length;k++)if(rows[k][0]>=d)return k;return rows.length-1}
+function addDays(d,n){const x=new Date(d+'T00:00:00');x.setDate(x.getDate()+n);return x.toISOString().slice(0,10)}
+function allMarkers(r,rows){
+ const M=[];const add=(d,o,kind)=>{const t=snap(rows,d);if(t)M.push({time:t,kind,...o})};
+ add(r.low_date,{position:'belowBar',shape:'arrowUp',color:css('--up'),text:'Low'},'k');
+ add(r.bo_date,{position:'belowBar',shape:'arrowUp',color:css('--accent'),text:'BO '+r.bo_vol_x+'×'},'k');
+ if(r.nh_date)add(r.nh_date,{position:'belowBar',shape:'circle',color:css('--rs'),text:'52wH'},'k');
+ add(r.high_date,{position:'aboveBar',shape:'arrowDown',color:css('--down'),text:'Top'},'k');
+ r.earnings.forEach(e=>{if(e.rd<rows[0][0]||e.rd>rows[rows.length-1][0])return;const np=e.np_yoy==null?'':e.np_yoy===999?' TA':' '+fmtPct(e.np_yoy);add(e.rd,{position:'aboveBar',shape:'square',color:css('--amber'),text:'Q'+np},'q')});
+ return M.sort((a,b)=>a.time.localeCompare(b.time));
+}
+/* ---- market context: index move, excess move, day explanation, RS story ---- */
+const IXC=10,IXCH=11;
+const TAGC={'RS day':'t-up','Stock +':'t-up','RW day':'t-dn','Stock −':'t-dn','Partly mkt':'t-pm','Market':'t-mk'};
+const tagc=g=>TAGC[g]||'';
+function dayStats(rows,i){
+ const x=rows[i],p=i>0?rows[i-1]:null;if(!p)return null;
+ const s=(x[4]/p[4]-1)*100,m=x[IXCH],gap=(x[1]/p[4]-1)*100,vx=x[8]?x[5]/x[8]:null;
+ return {s,m,ex:m==null?null:s-m,gap,vx};
+}
+function nearResult(r,d){
+ for(const e of r.earnings){const dd=(new Date(d)-new Date(e.rd))/864e5;if(dd>=-4&&dd<=4)return e}
+ return null;
+}
+function why(rows,i,r){
+ const t=dayStats(rows,i);if(!t||t.m==null)return {tag:'',text:''};
+ const {s,m,ex,gap,vx}=t,ps=fmtPct(s),pm=fmtPct(m),pe=fmtPct(ex);
+ let tag,text;
+ if(m<=-0.8&&s>=0.3){tag='RS day';text=`Relative strength: the stock rose ${ps} while the Smallcap 250 fell ${pm}. Buyers held it up on a down day for the market.`}
+ else if(m>=0.8&&s<=-0.3){tag='RW day';text=`Relative weakness: the stock fell ${ps} while the Smallcap 250 rose ${pm}. This is selling specific to the stock.`}
+ else if(Math.abs(m)>=1&&Math.sign(s)===Math.sign(m)&&Math.abs(ex)<Math.max(1.5,Math.abs(m)*.75)){tag='Market';text=`Moved with the market: the Smallcap 250 was ${pm} and the stock ${ps}. The excess move, ${pe}, is small, so the index explains most of this day.`}
+ else if(Math.abs(m)>=1&&Math.sign(s)===Math.sign(m)&&Math.abs(s)>Math.abs(m)&&Math.abs(m)/Math.abs(s)>=0.35){const sh=Math.round(Math.abs(m)/Math.abs(s)*100);tag='Partly mkt';text=`Partly the market: the Smallcap 250 was ${pm}, which explains about ${sh}% of the stock's ${ps} move. The other ${pe} was specific to the stock.`}
+ else if(Math.abs(ex)>=2.5){tag=ex>0?'Stock +':'Stock −';text=`Stock-specific: the stock was ${ps} against the Smallcap 250's ${pm}, leaving ${pe} that the market does not explain.`}
+ else if(Math.abs(s)<1.2){tag='Quiet';text=`Quiet day: the stock was ${ps} and the Smallcap 250 ${pm}.`}
+ else {tag='Mixed';text=`The stock was ${ps}, the Smallcap 250 ${pm}, an excess move of ${pe}.`}
+ const add=[];
+ if(Math.abs(gap)>=3)add.push(`It gapped ${fmtPct(gap)} at the open, which points to overnight news or results.`);
+ const q=nearResult(r,rows[i][0]);if(q&&(Math.abs(ex)>=2||Math.abs(gap)>=3))add.push(`This was near the estimated ${q.q} result date${q.np_yoy!=null?` (net profit ${q.np_yoy===999?'turned positive':fmtPct(q.np_yoy)+' YoY'})`:''}.`);
+ if(vx!=null){
+  if(s<=-2&&vx<0.8)add.push(`Volume was light (${vx.toFixed(1)}× average), so this looks like profit-taking rather than heavy selling.`);
+  else if(s<=-2&&vx>=1.8)add.push(`Volume was ${vx.toFixed(1)}× average, so this was real selling (distribution).`);
+  else if(s>=2&&vx>=1.8)add.push(`Volume was ${vx.toFixed(1)}× average, so this was real buying (accumulation).`);
+  else if(s>=2&&vx<0.8)add.push(`Volume was light (${vx.toFixed(1)}× average), so the rise was not strongly backed.`);
+ }
+ return {tag,text:text+(add.length?' '+add.join(' '):'')};
+}
+function sma(arr,n){const o=[];let sum=0,c=0;for(let k=0;k<arr.length;k++){const v=arr[k];if(v!=null){sum+=v;c++}if(k>=n){const u=arr[k-n];if(u!=null){sum-=u;c--}}o.push(k>=n-1&&c>=n*.8?sum/c:null)}return o}
+const RSC={};
+function rsCalc(s){
+ if(RSC[s])return RSC[s];
+ const r=A.find(x=>x.stock===s),rows=C[s],rs=rows.map(x=>x[9]),rs50=sma(rs,50);
+ const iL=idxOf(rows,r.low_date),iB=idxOf(rows,r.bo_date),ws=idxOf(rows,addDays(r.low_date,-150));
+ let lo=ws;for(let k=ws;k<=iB;k++)if(rs[k]!=null&&(rs[lo]==null||rs[k]<rs[lo]))lo=k;
+ let turn=null;for(let k=lo+1;k<rows.length;k++)if(rs50[k]!=null&&rs50[k-5]!=null&&rs[k]>rs50[k]&&rs50[k]>rs50[k-5]){turn=k;break}
+ let nh=null;for(let k=Math.max(lo+1,120);k<rows.length;k++){let mx=-1e9;for(let j=Math.max(0,k-250);j<k;j++)if(rs[j]>mx)mx=rs[j];if(rs[k]>=mx){nh=k;break}}
+ // index crash window: index high in the 250 bars before the stock low, index low Jan-Apr 2025
+ const ic=rows.map(x=>x[IXC]);let ip=Math.max(0,iL-250);for(let k=ip;k<=iL;k++)if(ic[k]>ic[ip])ip=k;
+ let il=idxOf(rows,'__IXLO_FROM__');const ie=idxOf(rows,'__IXLO_TO__');for(let k=il;k<=ie;k++)if(ic[k]<ic[il])il=k;
+ const pnh=r.nh_date?idxOf(rows,r.nh_date):null;
+ return RSC[s]={rs50,lo,turn,nh,iL,iB,ip,il,pnh};
+}
+function rsStory(s){
+ const r=A.find(x=>x.stock===s),rows=C[s],k=rsCalc(s),D=i=>fmtD(rows[i][0]);
+ const gap=(a,b)=>Math.round((new Date(rows[b][0])-new Date(rows[a][0]))/864e5);
+ const out=[];
+ const ixFall=(rows[k.il][IXC]/rows[k.ip][IXC]-1)*100,stFall=(rows[k.il][4]/rows[k.ip][4]-1)*100;
+ out.push(['Through the crash',`From the Smallcap 250's high (${D(k.ip)}) to its 2025 low (${D(k.il)}), the index moved ${fmtPct(ixFall)} and ${s} moved ${fmtPct(stFall)}. ${stFall>ixFall+5?'The stock held up better than the market.':stFall<ixFall-5?'The stock fell harder than the market, so the low was a washout.':'The stock fell roughly in line with the market.'}`]);
+ const lead=gap(k.lo,k.iL);
+ out.push(['RS bottom',`The RS line bottomed on ${D(k.lo)}, ${lead>3?lead+' days before':lead<-3?(-lead)+' days after':'the same week as'} the price low (${D(k.iL)}). ${lead>3?'RS turning up while price still fell is the earliest sign of a leader.':'RS and price bottomed together, so there was no early warning here.'}`]);
+ if(k.turn!=null){const ixAfter=(rows[k.il][IXC]/rows[k.turn][IXC]-1)*100;out.push(['RS turns up',`On ${D(k.turn)} the RS line rose above its 50-day average while that average was rising: the start of outperformance. ${k.turn<k.il&&ixAfter<-1?`The index then fell another ${Math.abs(ixAfter).toFixed(1)}% into its low, and the stock kept outperforming through it.`:`That was ${gap(k.turn,k.iB)} days before the price breakout.`}`])}
+ if(k.nh!=null){const d=k.pnh!=null?gap(k.nh,k.pnh):null;out.push(['RS 52-week high',`The RS line made a new 52-week high on ${D(k.nh)}${d!=null?(d>0?`, ${d} days before price reclaimed its 52-week high (${D(k.pnh)}). RS led price.`:d<0?`, ${-d} days after price did (${D(k.pnh)}). Price led.`:', the same day as price.'):'. Price never reclaimed its 52-week high in the window.'}`])}
+ const rsGain=(rows[k.iB][9]/rows[k.lo][9]-1)*100;
+ out.push(['Low → breakout',`From the RS bottom to the breakout (${D(k.iB)}), the stock outperformed the Smallcap 250 by ${fmtPct(rsGain)} on the RS line.`]);
+ return out;
+}
+function notable(s){
+ const r=A.find(x=>x.stock===s),rows=C[s];
+ const a=idxOf(rows,addDays(r.low_date,-120)),b=idxOf(rows,r.nh_date||r.high_date);
+ const L=[];for(let i=Math.max(1,a);i<=b;i++){const t=dayStats(rows,i);if(!t||t.m==null)continue;if(Math.abs(t.s)>=4.5||(t.vx||0)>=3||(t.m<=-1.5&&t.s>=0))L.push({i,...t})}
+ L.sort((x,y)=>Math.abs(y.ex)-Math.abs(x.ex));
+ return L.slice(0,12).sort((x,y)=>x.i-y.i);
+}
+
+const fmtV=v=>v>=1e7?(v/1e7).toFixed(2)+' Cr':v>=1e5?(v/1e5).toFixed(2)+' L':v>=1e3?(v/1e3).toFixed(1)+' K':String(v);
+function legend(i){
+ const rows=C[cur];if(i==null||i<0)return;const x=rows[i],p=i>0?rows[i-1]:null;
+ const ch=p?(x[4]/p[4]-1)*100:0,col=ch>=0?'var(--good)':'var(--bad)';
+ const f=v=>v==null?'—':v.toFixed(2);
+ $('#legend').innerHTML=`<span><b>${cur}</b> <span class="lb">· 1D · NSE</span></span>`+
+  `<span><span class="lb">O</span> <b style="color:${col}">${f(x[1])}</b></span><span><span class="lb">H</span> <b style="color:${col}">${f(x[2])}</b></span><span><span class="lb">L</span> <b style="color:${col}">${f(x[3])}</b></span><span><span class="lb">C</span> <b style="color:${col}">${f(x[4])}</b> <span style="color:${col}">${ch>=0?'+':''}${ch.toFixed(2)}%</span></span>`+
+  `<span><span class="lb">Vol</span> <b>${fmtV(x[5])}</b>${x[8]?` <span class="lb">(${(x[5]/x[8]).toFixed(1)}× avg)</span>`:''}</span>`+
+  `<span style="color:var(--ma50)">50 ${f(x[6])}</span><span style="color:var(--ma200)">200 ${f(x[7])}</span>`+
+  (x[IXCH]!=null?`<span><span class="lb">SC250</span> <b style="color:${x[IXCH]>=0?'var(--good)':'var(--bad)'}">${fmtPct(x[IXCH])}</b></span><span><span class="lb">Excess</span> <b>${fmtPct(ch-x[IXCH])}</b></span>`:'');
+ const w=why(rows,i,A.find(z=>z.stock===cur));
+ $('#why').innerHTML=w.text?`<span class="wtag ${tagc(w.tag)}">${w.tag}</span><span>${fmtD(x[0])}: ${w.text}</span>`:'';
+}
+function draw(){
+ const r=A.find(x=>x.stock===cur),rows=C[cur],el=$('#chart'),L=LC();
+ if(chart){chart.remove();chart=null}
+ if(!L){el.innerHTML='<p class="muted" style="padding:16px">The chart library did not load. Check your connection and reload the page.</p>';return}
+ const bg=css('--sheet'),fg=css('--muted'),grid=css('--grid'),rule=css('--rule');
+ chart=L.createChart(el,{autoSize:true,
+  layout:{background:{type:'solid',color:bg},textColor:fg,fontFamily:'JetBrains Mono, monospace',fontSize:11,attributionLogo:false,panes:{separatorColor:rule,separatorHoverColor:css('--chip'),enableResize:true}},
+  grid:{vertLines:{color:grid},horzLines:{color:grid}},
+  rightPriceScale:{borderColor:rule,minimumWidth:72},
+  timeScale:{borderColor:rule,rightOffset:10,barSpacing:7,minBarSpacing:2},
+  crosshair:{mode:L.CrosshairMode.Normal,vertLine:{color:fg,labelBackgroundColor:css('--ink')},horzLine:{color:fg,labelBackgroundColor:css('--ink')}}});
+ const line=(c,w,pane,style,extra)=>chart.addSeries(L.LineSeries,{color:c,lineWidth:w,lineStyle:style||0,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,...(extra||{})},pane);
+ S={cs:chart.addSeries(L.CandlestickSeries,{upColor:css('--up'),downColor:css('--down'),wickUpColor:css('--up'),wickDownColor:css('--down'),borderVisible:false,priceLineVisible:true,priceLineStyle:2,priceFormat:(()=>{const px=rows[rows.length-1][4];const pr=px>=1000?0:px>=100?1:2;return {type:'price',precision:pr,minMove:1/Math.pow(10,pr)}})()},0),
+    m50:line(css('--ma50'),1.5,0),m200:line(css('--ma200'),1.5,0),bh:line(css('--accent'),1,0,2),bl:line(css('--accent'),1,0,2),
+    vol:chart.addSeries(L.HistogramSeries,{priceFormat:{type:'volume'},priceLineVisible:false,lastValueVisible:false},1),
+    v50:line(css('--muted'),1,1),
+    ix:chart.addSeries(L.BarSeries,{upColor:css('--up'),downColor:css('--down'),thinBars:false,openVisible:true,priceLineVisible:false,lastValueVisible:true,title:'SC250',priceFormat:{type:'price',precision:0,minMove:1}},2),
+    ua:css('--up-a'),da:css('--down-a'),markers:allMarkers(r,rows)};
+ S.mk=L.createSeriesMarkers(S.cs,[]);
+ const panes=chart.panes();
+ try{panes[0].setStretchFactor(60);panes[1].setStretchFactor(15);panes[2].setStretchFactor(25)}catch(e){}
+ try{L.createTextWatermark(panes[0],{horzAlign:'center',vertAlign:'center',lines:[{text:cur,color:css('--grid'),fontSize:72,fontStyle:'800'}]})}catch(e){}
+ chart.subscribeCrosshairMove(p=>{
+  if(!p||!p.time){legend(rp.on?rp.i:rows.length-1);return}
+  legend(idxOf(rows,p.time));
+ });
+ render(rp.on?rp.i:rows.length-1);
+ if(!rp.on)setView();
+}
+function render(i){
+ const r=A.find(x=>x.stock===cur),rows=C[cur],sl=rows.slice(0,i+1);
+ const ser=k=>sl.filter(x=>x[k]!=null).map(x=>({time:x[0],value:x[k]}));
+ S.cs.setData(sl.map(x=>({time:x[0],open:x[1],high:x[2],low:x[3],close:x[4]})));
+ S.m50.setData(ser(6));S.m200.setData(ser(7));S.v50.setData(ser(8));
+ S.vol.setData(sl.map(x=>({time:x[0],value:x[5],color:x[4]>=x[1]?S.ua:S.da})));
+ const t=rows[i][0];
+ const bx=t>=r.bo_date?rows.filter(x=>x[0]>=r.base_start&&x[0]<=r.bo_date):[];
+ S.bh.setData(bx.map(x=>({time:x[0],value:r.base_hi})));S.bl.setData(bx.map(x=>({time:x[0],value:r.base_lo})));
+ const blind=rp.on&&$('#rp-blind').checked;
+ S.mk.setMarkers(S.markers.filter(m=>m.time<=t&&!(blind&&m.kind==='k')).map(({kind,...m})=>m));
+ S.ix.setData(sl.filter(x=>x[12]!=null&&x[IXC]!=null).map(x=>({time:x[0],open:x[12],high:x[13],low:x[14],close:x[IXC]})));
+ legend(i);
+ if(rp.on){
+  chart.timeScale().setVisibleLogicalRange({from:Math.max(0,i-160),to:i+14});
+  $('#rp-slider').value=i;readout(i);
+ }
+}
+function readout(i){
+ const rows=C[cur],x=rows[i],r=A.find(z=>z.stock===cur);
+ const win=rows.slice(Math.max(0,i-250),i),p50=rows.slice(Math.max(0,i-50),i);
+ const hi52=win.length?Math.max(...win.map(z=>z[2])):null,lo52=win.length?Math.min(...win.map(z=>z[3])):null;
+ const hi50=p50.length?Math.max(...p50.map(z=>z[2])):null;
+ const rsw=rows.slice(Math.max(0,i-250),i).map(z=>z[9]).filter(v=>v!=null);
+ const vx=x[8]?x[5]/x[8]:null;
+ const off=hi52?(x[4]/hi52-1)*100:null,up=lo52?(x[4]/lo52-1)*100:null;
+ const f=(on,txt,hot)=>`<span class="flag ${on?(hot?'hot':'on'):'off'}">${on?'✓':'·'} ${txt}</span>`;
+ const lowSoFar=Math.min(...rows.slice(0,i+1).filter(z=>z[0]>='__YEAR__-01-01').map(z=>z[3]).concat([Infinity]));
+ document.querySelectorAll('#r-earn tr[data-rd]').forEach(tr=>tr.style.opacity=tr.dataset.rd>x[0]?.22:1);
+ $('#readout').innerHTML=`<span class="dt">${fmtD(x[0])}</span><span>₹${x[4]}</span>`+
+  `<span class="flag">${off==null?'':fmtPct(off)+' vs 52w high'}</span>`+
+  (isFinite(lowSoFar)?`<span class="flag">${fmtPct((x[4]/lowSoFar-1)*100)} off 2025 low</span>`:'')+
+  `<span class="flag">Vol ${vx?vx.toFixed(1)+'×':'—'}</span>`+
+  (x[IXCH]!=null?`<span class="flag">SC250 ${fmtPct(x[IXCH])}</span><span class="flag">Excess ${fmtPct((x[4]/rows[i-1][4]-1)*100-x[IXCH])}</span>`:'')+
+  f(x[6]!=null&&x[4]>x[6],'Above 50-day')+
+  f(x[6]!=null&&x[7]!=null&&x[4]>x[6]&&x[6]>x[7],'50 > 200')+
+  f(hi50!=null&&x[4]>hi50&&vx>=1.5,'50-day-high breakout',true)+
+  f(hi52!=null&&i>=200&&x[4]>hi52,'New 52w high',true);
+}
+function setView(){
+ if(!chart||rp.on)return;const r=A.find(x=>x.stock===cur);
+ if(view==='full'){chart.timeScale().fitContent();return}
+ const from=addDays(r.base_start<r.low_date?r.base_start:r.low_date,-120),to=addDays(r.nh_date&&r.nh_date<addDays(r.bo_date,120)?r.nh_date:r.bo_date,25);
+ try{chart.timeScale().setVisibleRange({from,to})}catch(e){chart.timeScale().fitContent()}
+}
+$('#v-setup').onclick=()=>{stopReplay();view='setup';$('#v-setup').setAttribute('aria-pressed',true);$('#v-full').setAttribute('aria-pressed',false);render(C[cur].length-1);setView()};
+$('#v-full').onclick=()=>{stopReplay();view='full';$('#v-full').setAttribute('aria-pressed',true);$('#v-setup').setAttribute('aria-pressed',false);render(C[cur].length-1);setView()};
+
+/* replay controls */
+function pause(){clearInterval(rp.timer);rp.timer=null;$('#rp-play').textContent='Play'}
+function go(i){const n=C[cur].length;rp.i=Math.max(0,Math.min(n-1,i));render(rp.i);if(rp.i>=n-1)pause()}
+function startIdx(){const r=A.find(x=>x.stock===cur),rows=C[cur];return Math.max(60,idxOf(rows,addDays(r.low_date,-120)))}
+function startReplay(){
+ rp.on=true;const rows=C[cur];
+ $('#rp-toggle').setAttribute('aria-pressed',true);$('#rp-toggle').textContent='■ Exit replay';
+ $('#rp-ctl').hidden=false;$('#readout').hidden=false;
+ $('#rp-slider').max=rows.length-1;go(startIdx());
+}
+function stopReplay(){
+ if(!rp.on)return;pause();rp.on=false;
+ $('#rp-toggle').setAttribute('aria-pressed',false);$('#rp-toggle').textContent='▶ Replay';
+ $('#rp-ctl').hidden=true;$('#readout').hidden=true;
+ document.querySelectorAll('#r-earn tr[data-rd]').forEach(tr=>tr.style.opacity=1);
+ if(chart){render(C[cur].length-1);setView()}
+}
+$('#rp-toggle').onclick=()=>rp.on?stopReplay():startReplay();
+$('#rp-fwd').onclick=()=>{pause();go(rp.i+1)};
+$('#rp-back').onclick=()=>{pause();go(rp.i-1)};
+$('#rp-play').onclick=()=>{
+ if(rp.timer){pause();return}
+ if(rp.i>=C[cur].length-1)go(startIdx());
+ $('#rp-play').textContent='Pause';
+ rp.timer=setInterval(()=>go(rp.i+1),+$('#rp-speed').value);
+};
+$('#rp-speed').onchange=()=>{if(rp.timer){pause();$('#rp-play').click()}};
+$('#rp-slider').oninput=e=>{pause();go(+e.target.value)};
+$('#rp-blind').onchange=()=>render(rp.i);
+document.querySelectorAll('[data-jump]').forEach(b=>b.onclick=()=>{
+ pause();const r=A.find(x=>x.stock===cur),rows=C[cur],j=b.dataset.jump;
+ go(j==='start'?startIdx():j==='low'?idxOf(rows,r.low_date):j==='bo'?idxOf(rows,r.bo_date):j==='nh'?(r.nh_date?idxOf(rows,r.nh_date):rp.i):idxOf(rows,r.high_date));
+});
+document.addEventListener('keydown',e=>{
+ if(!rp.on||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)&&e.target.type!=='range')return;
+ if(e.key==='ArrowRight'){e.preventDefault();pause();go(rp.i+1)}
+ else if(e.key==='ArrowLeft'){e.preventDefault();pause();go(rp.i-1)}
+ else if(e.key===' '&&e.target.tagName!=='BUTTON'){e.preventDefault();$('#rp-play').click()}
+});
+
+function focusBar(i){
+ const rows=C[cur];
+ if(rp.on){pause();go(i)}else{chart.timeScale().setVisibleLogicalRange({from:i-90,to:i+40})}
+ legend(i);try{chart.setCrosshairPosition(rows[i][4],rows[i][0],S.cs)}catch(e){}
+ document.querySelector('.ws').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function select(s){
+ const wasRp=rp.on;if(rp.on){pause();rp.on=false}
+ cur=s;const r=A.find(x=>x.stock===s);
+ document.querySelectorAll('.pitem').forEach(b=>b.setAttribute('aria-current',b.dataset.s===s));
+ $('#c-name').textContent=r.stock;$('#c-ret').textContent=fmtPct(r.calc_return)+' in 2025';
+ $('#c-ind').textContent=r.industry;
+ $('#timeline').innerHTML=[['Low',r.low_date,'−'+Math.round(r.drawdown_into_low)+'% from 52w high'],['Breakout',r.bo_date,fmtPct(r.gained_before_bo)+' off low · '+r.days_low_to_bo+'d'],['52w-high reclaim',r.nh_date,r.nh_date?fmtPct(r.nh_gained_from_low)+' off low':'not reached'],['Top',r.high_date,r.nh_to_high!=null?fmtPct(r.nh_to_high)+' after reclaim':fmtPct(r.bo_to_high)+' after BO']]
+  .map(([k,d,x])=>`<div class="tl"><span class="k">${k}</span><span class="d">${fmtD(d)}</span><span class="x">${x}</span></div>`).join('');
+ $('#r-score').textContent=r.score;
+ const liq=r.median_turnover_cr;
+ $('#r-chips').innerHTML=[`<span class="chip">${archetype(r)}</span>`,`<span class="chip ${r.earn_type==='Weak / none'?'bad':'good'}">Earnings: ${r.earn_type}</span>`,`<span class="chip ${liq<1?'bad':''}">₹${liq<1?liq.toFixed(2):liq.toFixed(1)} cr/day</span>`].join('');
+ const vals={washout:'−'+Math.round(r.drawdown_into_low)+'%',rs_thrust:'+'+Math.round(r.rs_gain_low_to_bo)+' pts',higher_low:r.held_higher_low==null?'n/a':'',bo_volume:r.bo_vol_x+'×',accumulation:r.updown_vol+'',nh_trend:'',rs_new_high:'',earnings:'',liquidity:'₹'+liq+' cr'};
+ $('#r-checks').innerHTML=CHK.map(([k,l])=>{const v=r.checks[k];const m=v===true?'<span class="m y">✓</span>':v===false?'<span class="m n">✗</span>':'<span class="m na">–</span>';return `<li>${m}<span>${l}</span><span class="val">${vals[k]||''}</span></li>`}).join('');
+ $('#r-read').textContent=READ[s]||'';
+ $('#r-rs').innerHTML=rsStory(s).map(([k,v])=>`<li><span class="k">${k}</span><span>${v}</span></li>`).join('');
+ const rows_=C[s],ND=notable(s);
+ $('#r-days').innerHTML='<tr><th>Date</th><th>Stock</th><th>SC250</th><th>Excess</th><th>Vol</th><th>Read</th></tr>'+ND.map(d=>{const w=why(rows_,d.i,r);return `<tr class="dayrow" tabindex="0" data-i="${d.i}" title="${w.text.replace(/"/g,'')}"><td>${fmtD(rows_[d.i][0])}</td><td class="${d.s>=0?'pos':'neg'}">${fmtPct(d.s)}</td><td class="${d.m>=0?'pos':'neg'}">${fmtPct(d.m)}</td><td class="${d.ex>=0?'pos':'neg'}">${fmtPct(d.ex)}</td><td>${d.vx?d.vx.toFixed(1)+'×':'—'}</td><td><span class="wtag ${tagc(w.tag)}">${w.tag}</span></td></tr>`}).join('');
+ document.querySelectorAll('.dayrow').forEach(tr=>{const f=()=>focusBar(+tr.dataset.i);tr.onclick=f;tr.onkeydown=e=>{if(e.key==='Enter')f()}});
+ const E=r.earnings.filter(e=>e.q.slice(-4)>='__PYEAR__'&&e.q.slice(-4)<='__YEAR__');
+ const cell=v=>v==null?'<td>—</td>':v===999?'<td class="pos">TA</td>':`<td class="${v>=0?'pos':'neg'}">${fmtPct(v)}</td>`;
+ $('#r-earn').innerHTML='<tr><th>Quarter</th><th>Sales</th><th>Net profit</th><th>Result ~</th></tr>'+E.map(e=>`<tr data-rd="${e.rd}"><td>${e.q}</td>${cell(e.sales_yoy)}${cell(e.np_yoy)}<td class="muted">${fmtD(e.rd)}</td></tr>`).join('');
+ draw();
+ if(wasRp)startReplay();
+}
+list();select(A[0].stock);
+(()=>{let b=0,l=0,n=0;const days=(rows,a,c)=>(new Date(rows[c][0])-new Date(rows[a][0]))/864e5;
+ A.forEach(r=>{const k=rsCalc(r.stock),rows=C[r.stock];if(days(rows,k.lo,k.iL)>3)b++;if(k.nh!=null&&k.pnh!=null){n++;if(k.nh<k.pnh)l++}});
+ const p=document.querySelectorAll('.stage p')[1];if(p)p.textContent+=` The RS line bottomed before price in ${b} of ${A.length}, and reached a 52-week high before price did in ${l} of ${n}.`;
+ window.__rsAgg={b,l,n};})();
+function order(){return [...document.querySelectorAll('.pitem')].map(b=>b.dataset.s)}
+function step(d){const o=order(),k=o.indexOf(cur);select(o[(k+d+o.length)%o.length]);document.querySelector('.pitem[aria-current="true"]')?.scrollIntoView({block:'nearest'})}
+$('#prev').onclick=()=>step(-1);$('#next').onclick=()=>step(1);
+document.addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;if(e.key==='[')step(-1);else if(e.key===']')step(1)});
+const mq=matchMedia('(prefers-color-scheme: dark)');mq.addEventListener?.('change',draw);
+new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+</script>
