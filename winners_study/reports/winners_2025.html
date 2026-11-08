@@ -266,8 +266,8 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
       </div>
       <div class="ws-tools">
         <div class="seg ind" role="group" aria-label="Show or hide moving averages">
-          <button data-ind="e10" aria-pressed="true" title="10-period EMA"><i style="background:var(--ema10)"></i>EMA 10</button>
-          <button data-ind="e20" aria-pressed="true" title="20-period EMA"><i style="background:var(--ema20)"></i>EMA 20</button>
+          <button data-ind="e10" aria-pressed="true" title="10-period EMA on the stock and the Smallcap 250"><i style="background:var(--ema10)"></i>EMA 10</button>
+          <button data-ind="e20" aria-pressed="true" title="20-period EMA on the stock and the Smallcap 250"><i style="background:var(--ema20)"></i>EMA 20</button>
           <button data-ind="m50" aria-pressed="true" title="50-day simple average"><i style="background:var(--ma50)"></i>50</button>
           <button data-ind="m200" aria-pressed="true" title="200-day simple average"><i style="background:var(--ma200)"></i>200</button>
         </div>
@@ -309,7 +309,7 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
     <div class="readout" id="readout" hidden></div>
     <div class="ws-foot">
       <div class="timeline" id="timeline"></div>
-      <div class="keys"><span><i style="background:var(--ema10)"></i>EMA 10</span><span><i style="background:var(--ema20)"></i>EMA 20</span><span><i style="background:var(--ma50)"></i>50 DMA</span><span><i style="background:var(--ma200)"></i>200 DMA</span><span><i style="background:var(--accent);opacity:.6"></i>Pre-breakout range</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Q = result (est.): green if net profit YoY ≥ 0, red if negative</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Nifty Smallcap 250 (candles)</span></div>
+      <div class="keys"><span><i style="background:var(--ema10)"></i>EMA 10</span><span><i style="background:var(--ema20)"></i>EMA 20</span><span><i style="background:var(--ma50)"></i>50 DMA</span><span><i style="background:var(--ma200)"></i>200 DMA</span><span><i style="background:var(--accent);opacity:.6"></i>Pre-breakout range</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Q = result (est.): green if net profit YoY ≥ 0, red if negative</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Nifty Smallcap 250 (candles, with EMA 10/20)</span></div>
     </div>
   </div>
   <div class="info3">
@@ -537,6 +537,7 @@ function draw(){
     vol:chart.addSeries(L.HistogramSeries,{priceFormat:{type:'volume'},priceLineVisible:false,lastValueVisible:false},1),
     v50:line(css('--muted'),1,1),
     ix:chart.addSeries(L.CandlestickSeries,{upColor:css('--up'),downColor:css('--down'),wickUpColor:css('--up'),wickDownColor:css('--down'),borderVisible:false,priceLineVisible:false,lastValueVisible:true,priceFormat:{type:'price',precision:0,minMove:1}},2),
+    ie10:line(css('--ema10'),1,2),ie20:line(css('--ema20'),1,2),IE10:ema(rows.map(x=>x[IXC]),10),IE20:ema(rows.map(x=>x[IXC]),20),
     ua:css('--up-a'),da:css('--down-a'),markers:allMarkers(r,rows)};
  S.mk=L.createSeriesMarkers(S.cs,[]);
  const panes=chart.panes();
@@ -555,7 +556,7 @@ function render(i){
  const ser=k=>sl.filter(x=>x[k]!=null).map(x=>({time:x[0],value:x[k]}));
  S.cs.setData(sl.map(x=>({time:x[0],open:x[1],high:x[2],low:x[3],close:x[4]})));
  S.m50.setData(ser(6));S.m200.setData(ser(7));S.v50.setData(ser(8));
- const eS=E=>sl.map((x,k)=>({time:x[0],value:E[k]})).filter(z=>z.value!=null);S.e10.setData(eS(S.E10));S.e20.setData(eS(S.E20));applyInd();
+ const eS=E=>sl.map((x,k)=>({time:x[0],value:E[k]})).filter(z=>z.value!=null);S.e10.setData(eS(S.E10));S.e20.setData(eS(S.E20));S.ie10.setData(eS(S.IE10));S.ie20.setData(eS(S.IE20));applyInd();
  S.vol.setData(sl.map(x=>({time:x[0],value:x[5],color:x[4]>=x[1]?S.ua:S.da})));
  const t=rows[i][0];
  const bx=t>=r.bo_date?rows.filter(x=>x[0]>=r.base_start&&x[0]<=r.bo_date):[];
@@ -654,7 +655,7 @@ function ema(v,n){const k=2/(n+1),o=[];let e=null,c=0,s=0;
 const IND={e10:true,e20:true,m50:true,m200:true};
 try{Object.assign(IND,JSON.parse(localStorage.getItem('winners-ind')||'{}'))}catch(e){}
 function applyInd(){
- if(S.e10){S.e10.applyOptions({visible:IND.e10});S.e20.applyOptions({visible:IND.e20});S.m50.applyOptions({visible:IND.m50});S.m200.applyOptions({visible:IND.m200})}
+ if(S.e10){S.e10.applyOptions({visible:IND.e10});S.e20.applyOptions({visible:IND.e20});S.m50.applyOptions({visible:IND.m50});S.m200.applyOptions({visible:IND.m200});S.ie10.applyOptions({visible:IND.e10});S.ie20.applyOptions({visible:IND.e20})}
  document.querySelectorAll('[data-ind]').forEach(b=>b.setAttribute('aria-pressed',!!IND[b.dataset.ind]));
 }
 document.querySelectorAll('[data-ind]').forEach(b=>b.onclick=()=>{
