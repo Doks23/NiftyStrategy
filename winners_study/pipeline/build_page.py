@@ -5,7 +5,7 @@ from .common import ROOT
 KEEP = ["stock","industry","calc_return","low_date","high_date","bo_date","nh_date","days_low_to_bo",
         "gained_before_bo","bo_to_high","nh_to_high","nh_gained_from_low","nh_vol_x","bo_vol_x","bo_gap",
         "drawdown_into_low","rs_gain_low_to_bo","held_higher_low","updown_vol","median_turnover_cr",
-        "earn_type","checks","score","base_start","base_hi","base_lo","earnings"]
+        "earn_type","checks","score","tier","base_start","base_hi","base_lo","earnings"]
 
 
 def run(cfg):

@@ -5,7 +5,7 @@ Consolidated page first; falls back to standalone when consolidated is empty or 
 import json, re, time
 import pandas as pd, requests
 from bs4 import BeautifulSoup
-from .common import ROOT
+from .common import read_inputs
 
 H = {"User-Agent": "Mozilla/5.0 (research script)"}
 
@@ -37,8 +37,12 @@ def _parse(html):
 
 def run(cfg):
     y = cfg["year"]
-    w = pd.read_csv(ROOT / cfg["input_csv"]); out = {}
+    store = cfg["cache"] / "screener.json"
+    out = json.loads(store.read_text()) if store.exists() and not cfg.get("refresh") else {}
+    w = read_inputs(cfg)
     for s in w["Stock Name"]:
+        if s in out:
+            continue                                    # already fetched (use --refresh to redo)
         best = None
         for path in (f"/company/{s}/consolidated/", f"/company/{s}/"):
             r = requests.get("https://www.screener.in" + path, headers=H, timeout=30)
@@ -50,4 +54,4 @@ def run(cfg):
         out[s] = best
         print(f"  {s}: {best['src'] if best else 'NONE'}")
         time.sleep(1.2)
-    (cfg["cache"] / "screener.json").write_text(json.dumps(out))
+    store.write_text(json.dumps(out))

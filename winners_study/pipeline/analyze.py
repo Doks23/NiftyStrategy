@@ -9,7 +9,15 @@ Definitions (also printed on the page):
 """
 import json
 import numpy as np, pandas as pd
-from .common import ROOT
+
+
+def _jsonable(o):
+    """numpy scalars -> plain Python, so JSON gets true/false and numbers, never strings."""
+    if isinstance(o, np.bool_): return bool(o)
+    if isinstance(o, np.integer): return int(o)
+    if isinstance(o, np.floating): return float(o)
+    return str(o)
+from .common import read_inputs
 
 MON={"Mar":3,"Jun":6,"Sep":9,"Dec":12}
 def qdate(lbl):
@@ -44,13 +52,14 @@ def score(a):
          "rs_new_high":r.get("nh_rs_hi") is True,
          "earnings":r["earn_type"]!="Weak / none",
          "liquidity":r["median_turnover_cr"]>=1}
+        chk={k:(None if v is None else bool(v)) for k,v in chk.items()}   # plain bools: numpy bools would serialise as "True"
         r["checks"]=chk;r["score"]=sum(1 for v in chk.values() if v)
     return a
 
 
 def run(cfg):
     Y=cfg["year"];cache=cfg["cache"];rw=cfg["retest_window"];pw=cfg["prior_low_window"]
-    w=pd.read_csv(ROOT/cfg["input_csv"]);scr=json.loads((cache/"screener.json").read_text())
+    w=read_inputs(cfg);scr=json.loads((cache/"screener.json").read_text())
     IX=pd.read_csv(cache/"dhan"/"INDEX.csv",parse_dates=["date"]).drop_duplicates("date",keep="last").set_index("date")
     ix=IX.close;ixc=ix.pct_change()*100
     out=[];charts={}
@@ -116,7 +125,7 @@ def run(cfg):
         elif pre_dd>=40 and days_L_bo<=45: arch="V-reversal / turnaround"
         elif depth<=40 and (vdry or 9)<=0.9: arch="Base breakout (tight)"
         else: arch="Base breakout (loose)"
-        rec=dict(stock=s,industry=row["Basic Industry"],csv_return=row[cfg["return_col"]],calc_return=mpr,
+        rec=dict(stock=s,industry=row["Basic Industry"],csv_return=row.get(cfg["return_col"]),calc_return=mpr,
           low_date=str(L.date()),high_date=str(H.date()),bo_date=str(bo.date()),days_low_to_bo=days_L_bo,days_bo_to_high=(H-bo).days,
           gained_before_bo=gained_before_bo,bo_to_high=after_bo,index_ret=ix_ret,
           base_depth=depth,base_thirds=tr,vol_dryup=vdry,bo_vol_x=bovol,bo_gap=gap,bo_day=boday,
@@ -124,7 +133,8 @@ def run(cfg):
           rs_at_high=rs_hi,rs_led=rs_lead,updown_vol=ud,drawdown_into_low=pre_dd,median_turnover_cr=medtv,
           archetype=arch,earnings_before_bo=last2,earnings_near_bo=near,earnings=eq,
           about=(sc.get("about") or "")[:400],ratios=sc.get("ratios",{}),base_start=str(pre.index[0].date()),base_hi=base_hi,base_lo=base_lo,
-          csv_eps=row["Avg QoQ EPS Growth(%)"],csv_sales=row["Avg QoQ Sales Growth(%)"],csv_voldays=row["Days with buying volume > 50-day MA"])
+          csv_eps=row.get("Avg QoQ EPS Growth(%)"),csv_sales=row.get("Avg QoQ Sales Growth(%)"),csv_voldays=row.get("Days with buying volume > 50-day MA"),
+          tier=1 if mpr>=cfg.get("tier1_min",200) else 2,source=row["_file"])
         # 52w-high reclaim after the low
         nh=None
         for t in d.loc[L:H].index[1:]:
@@ -160,5 +170,5 @@ def run(cfg):
             else: row_.extend([None,None,None])
         print(f"  {s}: move {mpr}% (file {rec['csv_return']}%), low {rec['low_date']}, breakout {rec['bo_date']}, reclaim {rec['nh_date']}")
     out=score(out)
-    (cache/"analysis.json").write_text(json.dumps(out,default=str))
+    (cache/"analysis.json").write_text(json.dumps(out,default=_jsonable))
     (cache/"charts.json").write_text(json.dumps(charts))

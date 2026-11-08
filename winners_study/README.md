@@ -20,7 +20,10 @@ export DHAN_ACCESS_TOKEN=...      # Dhan tokens are valid for 24h
 
 python -m winners_study.run --year 2025                          # fetch + analyse + build
 python -m winners_study.run --year 2025 --steps analyze,build    # rebuild from cache only
+python -m winners_study.run --year 2025 --refresh                # re-download everything
 ```
+
+Downloads are incremental: Dhan and Screener data already in `cache/` is reused, so adding names only fetches the new ones.
 
 Run it from the repo root. Requires `pandas`, `numpy`, `requests`, `beautifulsoup4` and `lxml`.
 
@@ -33,6 +36,18 @@ Run it from the repo root. Requires `pandas`, `numpy`, `requests`, `beautifulsou
 
 `cache/` is gitignored. Use Dhan rather than Yahoo for prices: Yahoo's data is not split-adjusted for some stocks (JSLL and SIGMA in 2025).
 
+## Inputs, screening and tiers
+
+`input_csv` in the config can list several files. They are merged, and the first occurrence of a symbol wins. Only `Stock Name` and `Basic Industry` are required.
+
+Each stock's tier comes from its actual low-to-high move in the year, measured on Dhan prices. Tier 1 is 200% or more (`tier1_min` in the config), Tier 2 is 100–200%. The report's group switch shows the summaries for Tier 1, Tier 2 or all stocks.
+
+2025 has two input files:
+- `inputs/winners_2025.csv`: the original 32.
+- `inputs/winners_2025_additions.csv`: 50 names screened from `inputs/winnerdb_2025_raw.csv`.
+
+`inputs/winnerdb_2025_screening.csv` gives the keep or remove decision and the reason for every row of the raw file. 35 were removed: 10 duplicates of names already in the study (SMLISUZU is SMLMAH), 4 that could not be verified (a rights entitlement, a missing symbol, and two whose file details don't match the NSE symbol), and 21 that moved less than 100% in 2025. That raw file's "gain from 52-week low" is measured up to the export date, not over 2025, and some figures include unadjusted splits.
+
 ## Adding a new year
 
 1. Put the winners file at `inputs/winners_<year>.csv`. It needs the same columns as the 2025 file: `Stock Name`, `Maximum Potential Return(%) in <year>`, `Basic Industry`, and so on.
@@ -41,8 +56,8 @@ Run it from the repo root. Requires `pandas`, `numpy`, `requests`, `beautifulsou
    - `index_low_window`: the date range in which the benchmark made its main low that year;
    - `prior_low_window` and `retest_window`: the main low and the later retest.
 3. Run all steps with a fresh Dhan token.
-4. Optional: add a one-line read per stock in `notes/<year>.json`. The build lists any stocks without one.
-5. The narrative text in `pipeline/template.html` is written for 2025: the thesis, the scan-rule figures and the red-flag examples. Review and rewrite it for the new year. Everything else on the page is computed from the data.
+4. Optional: add a one-line read per stock in `notes/<year>.json`. The build lists any stocks without one, and the page shows a summary generated from the data for those stocks.
+5. The thesis, the five-step sequence, the hit rates and the scan-rule figures are computed from the data. Only the red-flag examples and the "7-Apr" retest wording in `pipeline/template.html` are written for 2025; rewrite them for the new year.
 
 ## Definitions
 

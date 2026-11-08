@@ -1,5 +1,7 @@
 """Shared paths, config and Dhan credential loading for the winners study."""
 import json, os
+
+import pandas as pd
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent          # winners_study/
@@ -26,3 +28,10 @@ def dhan_creds(env_path=".env.dhan"):
     if not cid or not tok:
         raise SystemExit("Set DHAN_CLIENT_ID and DHAN_ACCESS_TOKEN (env or .env.dhan)")
     return cid, tok
+
+
+def read_inputs(cfg):
+    """All input files for the year as one table (first occurrence of a symbol wins)."""
+    files = cfg["input_csv"] if isinstance(cfg["input_csv"], list) else [cfg["input_csv"]]
+    w = pd.concat([pd.read_csv(ROOT / f).assign(_file=f) for f in files], ignore_index=True)
+    return w.drop_duplicates("Stock Name", keep="first").reset_index(drop=True)

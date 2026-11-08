@@ -5,7 +5,7 @@ and the post-move bars are available.
 """
 import time
 import pandas as pd, requests
-from .common import ROOT, dhan_creds
+from .common import dhan_creds, read_inputs
 
 SCRIP_URL = "https://images.dhan.co/api-data/api-scrip-master.csv"
 HIST_URL = "https://api.dhan.co/v2/charts/historical"
@@ -32,8 +32,10 @@ def run(cfg):
     sm = pd.read_csv(scrip, low_memory=False)
     eq = sm[(sm.SEM_EXM_EXCH_ID == "NSE") & (sm.SEM_SEGMENT == "E") & (sm.SEM_INSTRUMENT_NAME == "EQUITY")]
     out = cfg["cache"] / "dhan"
-    w = pd.read_csv(ROOT / cfg["input_csv"])
+    w = read_inputs(cfg)
     for s in w["Stock Name"]:
+        if (out / f"{s}.csv").exists() and not cfg.get("refresh"):
+            continue                                    # already downloaded (use --refresh to redo)
         m = eq[eq.SEM_TRADING_SYMBOL == s]
         if m.empty:
             print(f"  {s}: no NSE security id - skipped"); continue
