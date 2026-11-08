@@ -292,6 +292,7 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
           <button data-ind="e20" aria-pressed="true" title="20-period EMA on the stock and the Smallcap 250"><i style="background:var(--ema20)"></i>EMA 20</button>
           <button data-ind="m50" aria-pressed="true" title="50-day simple average"><i style="background:var(--ma50)"></i>50</button>
           <button data-ind="m200" aria-pressed="true" title="200-day simple average"><i style="background:var(--ma200)"></i>200</button>
+          <button data-ind="rg" aria-pressed="true" title="Market regime on the Smallcap 250: green above EMA 10 and 20, red below both, amber mixed. A marker shows each change, confirmed by 2 closes."><i style="background:linear-gradient(90deg,var(--up) 0 33%,var(--amber) 33% 66%,var(--down) 66% 100%)"></i>Regime</button>
         </div>
         <div class="seg" role="group" aria-label="Chart range">
           <button id="v-setup" aria-pressed="true">Setup</button>
@@ -331,7 +332,7 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
     <div class="readout" id="readout" hidden></div>
     <div class="ws-foot">
       <div class="timeline" id="timeline"></div>
-      <div class="keys"><span><i style="background:var(--ema10)"></i>EMA 10</span><span><i style="background:var(--ema20)"></i>EMA 20</span><span><i style="background:var(--ma50)"></i>50 DMA</span><span><i style="background:var(--ma200)"></i>200 DMA</span><span><i style="background:var(--accent);opacity:.6"></i>Pre-breakout range</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Q = result (est.): green if net profit YoY ≥ 0, red if negative</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Nifty Smallcap 250 (candles, with EMA 10/20)</span></div>
+      <div class="keys"><span><i style="background:var(--ema10)"></i>EMA 10</span><span><i style="background:var(--ema20)"></i>EMA 20</span><span><i style="background:var(--ma50)"></i>50 DMA</span><span><i style="background:var(--ma200)"></i>200 DMA</span><span><i style="background:var(--accent);opacity:.6"></i>Pre-breakout range</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Q = result (est.): green if net profit YoY ≥ 0, red if negative</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Nifty Smallcap 250 (candles, with EMA 10/20)</span><span><i style="background:linear-gradient(90deg,var(--up) 0 33%,var(--amber) 33% 66%,var(--down) 66% 100%)"></i>Market regime (ribbon under the index): ▲ uptrend = above EMA 10 and 20 · ● mixed · ▼ downtrend = below both; a marker shows each change, confirmed by 2 closes</span></div>
     </div>
   </div>
   <div class="info3">
@@ -375,6 +376,7 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
       <li>It closes above its highest high of the last 50 sessions on ≥2× the 50-day average volume (<span data-st="bo"></span>).</li>
       <li>Up-day volume beats down-day volume over the prior 50 sessions (<span data-st="ud"></span>).</li>
       <li>Typical timing: about <span data-st="days"></span> days after the low, with <span data-st="gain"></span> already gained off the low.</li>
+      <li>Check the market first: <span data-st="rgbo"></span></li>
     </ol></div>
     <div class="panel"><h3>Confirmation: add or enter late</h3><ol>
       <li>It closes above its 52-week high (<span data-st="nh"></span> did), at a median <span data-st="nhvol"></span>× volume.</li>
@@ -414,6 +416,20 @@ let GROUP='1';
 try{GROUP=localStorage.getItem('winners-group')||'1'}catch(e){}
 const EX={};          // stock -> {stock, reason, note, at}: marked as not a winner
 const REMOVED=__REMOVED__;   // already removed from the study in the repo
+/* ---- market regime on the benchmark (one series for every stock) ----
+   raw: close above EMA 10 and EMA 20 = G (uptrend), below both = R (downtrend), else A (mixed).
+   A new regime needs 2 consecutive closes in it; the change is dated on the confirming close. */
+const IDX=__IDX__;                                   // [date, open, high, low, close]
+const IDXI=new Map(IDX.map((x,k)=>[x[0],k]));
+const REGN={G:'Uptrend',A:'Mixed',R:'Downtrend'},REGV={G:'--up',A:'--amber',R:'--down'};
+const REG=(()=>{const c=IDX.map(x=>x[4]),e10=ema(c,10),e20=ema(c,20);
+ const raw=c.map((v,k)=>e10[k]==null||e20[k]==null?null:(v>e10[k]&&v>e20[k]?'G':v<e10[k]&&v<e20[k]?'R':'A'));
+ const st=[],since=[],chg=[];let s=null,sn=null;
+ for(let k=0;k<c.length;k++){const r=raw[k];
+  if(r&&k>0&&r===raw[k-1]&&r!==s){chg[k]=s!==null;s=r;sn=IDX[k][0]}
+  st.push(s);since.push(sn)}
+ return {e10,e20,st,since,chg};})();
+function regAt(d){let k=IDXI.get(d);if(k==null){k=-1;for(let j=0;j<IDX.length&&IDX[j][0]<=d;j++)k=j}return k<0?null:{s:REG.st[k],since:REG.since[k]}}
 const EX_REASONS=['Takeover or corporate event','Price-only move (no earnings support)','Illiquid or operator-style','Bad data or wrong symbol','Other'];
 const exKey=s=>s.replace(/[^A-Za-z0-9_\-~:@]/g,c=>'+'+c.charCodeAt(0).toString(16));   // GVT&D -> GVT+26D
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -426,6 +442,8 @@ const recentListing=r=>C[r.stock]&&C[r.stock][0][0]>addDays(r.bo_date,-290);
 const archetype=r=>recentListing(r)?'Post-IPO base':r.bo_gap>=5?'Gap breakout':r.days_low_to_bo<=30?'V-reversal':'Base → breakout';
 const CHK=[['washout','Fell ≥30% into the low'],['rs_thrust','Beat index ≥15 pts, low → breakout'],['bo_volume','Breakout volume ≥2× average'],['accumulation','Up-volume > down-volume (50 days)'],['nh_trend','Trend aligned at 52-week-high reclaim'],['rs_new_high','RS at 52-week high at reclaim'],['earnings','Earnings acceleration or turnaround'],['higher_low','Higher low on the 7-Apr index retest'],['liquidity','Turnover ≥ ₹1 cr per day']];
 const ln=x=>Math.log(x);
+function regCount(g,key){const c={G:0,A:0,R:0};g.forEach(r=>{const x=regAt(r[key]);if(x&&x.s)c[x.s]++});return c}
+function regMix(g,key){const c=regCount(g,key);return `${c.G} of ${g.length} broke out with the market in an uptrend (${c.A} mixed, ${c.R} downtrend).`}
 function renderSummary(){
  const g=GA(),n=g.length,M=f=>med(g.map(f)),rets=g.map(r=>r.calc_return);
  const inWin=g.filter(r=>r.low_date>='__IXLO_FROM__'&&r.low_date<='__IXLO_TO__').length;
@@ -435,7 +453,7 @@ function renderSummary(){
  const stages=[
   ['01','Washout',fmtPct(-M(r=>r.drawdown_into_low)),`Median fall from the 52-week high into the 2025 low. ${inWin} of ${n} bottomed between Jan and Apr 2025, alongside the index.`],
   ['02','Relative-strength thrust','+'+Math.round(M(r=>r.rs_gain_low_to_bo))+' pts',`Median lead over the Smallcap 250 from the low to the breakout. ${g.filter(r=>r.rs_gain_low_to_bo>0).length} of ${n} were ahead. ${cnt('higher_low',g)} of ${has('higher_low',g)} held a higher low when the index retested on 7-Apr.`],
-  ['03','Breakout above 50-day high',Math.round(M(r=>r.days_low_to_bo))+' days',`Median time after the low. ${cnt('bo_volume',g)} of ${n} broke out on ≥2× volume. Already ${fmtPct(M(r=>r.gained_before_bo))} off the low, with ${fmtPct(M(r=>r.bo_to_high))} still to come.`],
+  ['03','Breakout above 50-day high',Math.round(M(r=>r.days_low_to_bo))+' days',`Median time after the low. ${cnt('bo_volume',g)} of ${n} broke out on ≥2× volume. Already ${fmtPct(M(r=>r.gained_before_bo))} off the low, with ${fmtPct(M(r=>r.bo_to_high))} still to come. ${regMix(g,'bo_date')}`],
   ['04','Reclaim 52-week high',fmtPct(M(r=>r.nh_to_high)),`Median gain still left after the reclaim. ${nhN} of ${n} reclaimed, at a median ${(+M(r=>r.nh_vol_x)).toFixed(1)}× volume. The trend and RS were at highs in ${cnt('nh_trend',g)} of them.`],
   ['05','Earnings catch up',g.filter(r=>r.earn_type!=='Weak / none').length+' / '+n,`${g.filter(r=>r.earn_type==='Accelerating').length} had accelerating profits and ${g.filter(r=>r.earn_type==='Turnaround').length} were turnarounds. In several, the strongest quarters were reported after the move had started.`]];
  if(typeof rsCalc==='function'){let b=0,l=0,m=0;const days=(rows,x,y)=>(new Date(rows[y][0])-new Date(rows[x][0]))/864e5;
@@ -451,7 +469,7 @@ function renderSummary(){
  document.querySelectorAll('.arow').forEach(b=>b.onclick=()=>{select(b.dataset.s);document.getElementById('bench-sec').scrollIntoView({behavior:'smooth'})});
  const ST={dd:fmtPct(-M(r=>r.drawdown_into_low)),hl:`${cnt('higher_low',g)} of ${has('higher_low',g)}`,liqfail:`${g.filter(r=>r.median_turnover_cr<1).length} of ${n}`,
   rs:'+'+Math.round(M(r=>r.rs_gain_low_to_bo)),bo:`${cnt('bo_volume',g)} of ${n}`,ud:`${cnt('accumulation',g)} of ${n}`,days:Math.round(M(r=>r.days_low_to_bo)),
-  gain:fmtPct(M(r=>r.gained_before_bo)),nh:`${nhN} of ${n}`,nhvol:(+M(r=>r.nh_vol_x)).toFixed(1),trend:`${cnt('nh_trend',g)} of ${nhN}`,earn:`${g.filter(r=>r.earn_type!=='Weak / none').length} of ${n}`};
+  gain:fmtPct(M(r=>r.gained_before_bo)),nh:`${nhN} of ${n}`,nhvol:(+M(r=>r.nh_vol_x)).toFixed(1),trend:`${cnt('nh_trend',g)} of ${nhN}`,earn:`${g.filter(r=>r.earn_type!=='Weak / none').length} of ${n}`,rgbo:(c=>`${c.G} of ${n} broke out with the Smallcap 250 in an uptrend, ${c.A} in a mixed market and ${c.R} in a downtrend. A downtrend breakout is an early leader, but it needs more confirmation.`)(regCount(g,'bo_date'))};
  document.querySelectorAll('[data-st]').forEach(e=>e.textContent=ST[e.dataset.st]);
  const lbl={'1':`200%+ · ${A.filter(r=>r.tier===1).length}`,'2':`100–200% · ${A.filter(r=>r.tier===2).length}`,'all':`All · ${A.length}`};
  document.querySelectorAll('[data-group]').forEach(b=>{b.textContent=lbl[b.dataset.group];b.setAttribute('aria-pressed',b.dataset.group===GROUP)});
@@ -572,7 +590,8 @@ function legend(i){
   `<span><span class="lb">Vol</span> <b>${fmtV(x[5])}</b>${x[8]?` <span class="lb">(${(x[5]/x[8]).toFixed(1)}× avg)</span>`:''}</span>`+
   (IND.e10&&S.E10?`<span style="color:var(--ema10)">EMA10 ${f(S.E10[i])}</span>`:'')+(IND.e20&&S.E20?`<span style="color:var(--ema20)">EMA20 ${f(S.E20[i])}</span>`:'')+
   (IND.m50?`<span style="color:var(--ma50)">50 ${f(x[6])}</span>`:'')+(IND.m200?`<span style="color:var(--ma200)">200 ${f(x[7])}</span>`:'')+
-  (x[IXCH]!=null?`<span><span class="lb">SC250</span> <b style="color:${x[IXCH]>=0?'var(--good)':'var(--bad)'}">${fmtPct(x[IXCH])}</b></span><span><span class="lb">Excess</span> <b>${fmtPct(ch-x[IXCH])}</b></span>`:'');
+  (x[IXCH]!=null?`<span><span class="lb">SC250</span> <b style="color:${x[IXCH]>=0?'var(--good)':'var(--bad)'}">${fmtPct(x[IXCH])}</b></span><span><span class="lb">Excess</span> <b>${fmtPct(ch-x[IXCH])}</b></span>`:'')+
+  ((g=>IND.rg&&g&&g.s?`<span><span class="lb">Mkt</span> <b style="color:var(${REGV[g.s]})">${REGN[g.s]}</b> <span class="lb">since ${fmtD(g.since)}</span></span>`:'')(regAt(x[0])));
  const w=why(rows,i,A.find(z=>z.stock===cur));
  $('#why').innerHTML=w.text?`<span class="wtag ${tagc(w.tag)}">${w.tag}</span><span>${fmtD(x[0])}: ${w.text}</span>`:'';
 }
@@ -594,9 +613,17 @@ function draw(){
     vol:chart.addSeries(L.HistogramSeries,{priceFormat:{type:'volume'},priceLineVisible:false,lastValueVisible:false},1),
     v50:line(css('--muted'),1,1),
     ix:chart.addSeries(L.CandlestickSeries,{upColor:css('--up'),downColor:css('--down'),wickUpColor:css('--up'),wickDownColor:css('--down'),borderVisible:false,priceLineVisible:false,lastValueVisible:true,priceFormat:{type:'price',precision:0,minMove:1}},2),
-    ie10:line(css('--ema10'),1,2),ie20:line(css('--ema20'),1,2),IE10:ema(rows.map(x=>x[IXC]),10),IE20:ema(rows.map(x=>x[IXC]),20),
+    ie10:line(css('--ema10'),1,2),ie20:line(css('--ema20'),1,2),
+    IE10:rows.map(x=>{const k=IDXI.get(x[0]);return k==null?null:REG.e10[k]}),IE20:rows.map(x=>{const k=IDXI.get(x[0]);return k==null?null:REG.e20[k]}),
+    rg:chart.addSeries(L.HistogramSeries,{priceScaleId:'rg',priceLineVisible:false,lastValueVisible:false,base:0},2),
     ua:css('--up-a'),da:css('--down-a'),markers:allMarkers(r,rows)};
  S.mk=L.createSeriesMarkers(S.cs,[]);
+ S.ixMk=L.createSeriesMarkers(S.ix,[]);
+ try{S.rg.priceScale().applyOptions({scaleMargins:{top:0.93,bottom:0},visible:false});S.ix.priceScale().applyOptions({scaleMargins:{top:0.06,bottom:0.12}})}catch(e){}
+ const tint=c=>/^#[0-9a-f]{6}$/i.test(c)?c+'99':c;
+ S.rgCol={G:tint(css('--up')),A:tint(css('--amber')),R:tint(css('--down'))};
+ S.rgMarks=rows.map(x=>{const k=IDXI.get(x[0]);if(k==null||!REG.chg[k])return null;const s=REG.st[k];
+  return {time:x[0],position:s==='R'?'aboveBar':'belowBar',shape:s==='G'?'arrowUp':s==='R'?'arrowDown':'circle',color:css(REGV[s]),size:1}}).filter(Boolean);
  const panes=chart.panes();
  try{panes[0].setStretchFactor(60);panes[1].setStretchFactor(15);panes[2].setStretchFactor(25)}catch(e){}
  try{L.createTextWatermark(panes[0],{horzAlign:'center',vertAlign:'center',lines:[{text:cur,color:css('--grid'),fontSize:72,fontStyle:'800'}]})}catch(e){}
@@ -622,6 +649,8 @@ function render(i){
  const blind=rp.on&&$('#rp-blind').checked;
  S.mk.setMarkers(S.markers.filter(m=>m.time<=t&&!(blind&&m.kind==='k')).map(({kind,...m})=>m));
  S.ix.setData(sl.filter(x=>x[12]!=null&&x[IXC]!=null).map(x=>({time:x[0],open:x[12],high:x[13],low:x[14],close:x[IXC]})));
+ S.rg.setData(sl.map(x=>{const k=IDXI.get(x[0]),s=k==null?null:REG.st[k];return s?{time:x[0],value:1,color:S.rgCol[s]}:{time:x[0]}}));
+ S.ixMk.setMarkers(IND.rg?S.rgMarks.filter(m=>m.time<=t):[]);
  legend(i);
  if(rp.on){
   chart.timeScale().setVisibleLogicalRange({from:Math.max(0,i-160),to:i+14});
@@ -648,7 +677,8 @@ function readout(i){
   f(x[6]!=null&&x[4]>x[6],'Above 50-day')+
   f(x[6]!=null&&x[7]!=null&&x[4]>x[6]&&x[6]>x[7],'50 > 200')+
   f(hi50!=null&&x[4]>hi50&&vx>=1.5,'50-day-high breakout',true)+
-  f(hi52!=null&&i>=200&&x[4]>hi52,'New 52w high',true);
+  f(hi52!=null&&i>=200&&x[4]>hi52,'New 52w high',true)+
+  ((g=>g&&g.s?`<span class="flag" style="color:var(${REGV[g.s]});font-weight:600">Mkt ${REGN[g.s]}</span>`:'')(regAt(x[0])));
 }
 function setView(){
  if(!chart||rp.on)return;const r=A.find(x=>x.stock===cur);
@@ -711,16 +741,16 @@ function ema(v,n){const k=2/(n+1),o=[];let e=null,c=0,s=0;
  for(const x of v){if(x==null){o.push(e);continue}
   if(e==null){s+=x;c++;if(c===n)e=s/n;o.push(e)}else{e=x*k+e*(1-k);o.push(e)}}
  return o}
-const IND={e10:true,e20:true,m50:true,m200:true};
+const IND={e10:true,e20:true,m50:true,m200:true,rg:true};
 try{Object.assign(IND,JSON.parse(localStorage.getItem('winners-ind')||'{}'))}catch(e){}
 function applyInd(){
- if(S.e10){S.e10.applyOptions({visible:IND.e10});S.e20.applyOptions({visible:IND.e20});S.m50.applyOptions({visible:IND.m50});S.m200.applyOptions({visible:IND.m200});S.ie10.applyOptions({visible:IND.e10});S.ie20.applyOptions({visible:IND.e20})}
+ if(S.e10){S.e10.applyOptions({visible:IND.e10});S.e20.applyOptions({visible:IND.e20});S.m50.applyOptions({visible:IND.m50});S.m200.applyOptions({visible:IND.m200});S.ie10.applyOptions({visible:IND.e10});S.ie20.applyOptions({visible:IND.e20});S.rg.applyOptions({visible:IND.rg});if(S.ixMk&&!IND.rg)S.ixMk.setMarkers([])}
  document.querySelectorAll('[data-ind]').forEach(b=>b.setAttribute('aria-pressed',!!IND[b.dataset.ind]));
 }
 document.querySelectorAll('[data-ind]').forEach(b=>b.onclick=()=>{
  IND[b.dataset.ind]=!IND[b.dataset.ind];
  try{localStorage.setItem('winners-ind',JSON.stringify(IND))}catch(e){}
- applyInd();legend(rp.on?rp.i:C[cur].length-1);
+ applyInd();if(S.ixMk&&IND.rg)render(rp.on?rp.i:C[cur].length-1);legend(rp.on?rp.i:C[cur].length-1);
 });
 /* ---- measure tool: click two points on the price pane, read the % move ---- */
 const MS={on:false,a:null,b:null,live:null};
@@ -811,7 +841,7 @@ function select(s){
  $('#c-name').textContent=r.stock;$('#c-ret').textContent=fmtPct(r.calc_return)+' in 2025 · Tier '+r.tier;
  $('#c-ind').textContent=r.industry;
  $('#timeline').innerHTML=[['Low',r.low_date,'−'+Math.round(r.drawdown_into_low)+'% from 52w high'],['Breakout',r.bo_date,fmtPct(r.gained_before_bo)+' off low · '+r.days_low_to_bo+'d'],['52w-high reclaim',r.nh_date,r.nh_date?fmtPct(r.nh_gained_from_low)+' off low':'not reached'],['Top',r.high_date,r.nh_to_high!=null?fmtPct(r.nh_to_high)+' after reclaim':fmtPct(r.bo_to_high)+' after BO']]
-  .map(([k,d,x])=>`<div class="tl"><span class="k">${k}</span><span class="d">${fmtD(d)}</span><span class="x">${x}</span></div>`).join('');
+  .map(([k,d,x])=>{const g=d?regAt(d):null;return `<div class="tl"><span class="k">${k}</span><span class="d">${fmtD(d)}</span><span class="x">${x}</span>${g&&g.s?`<span class="x" style="color:var(${REGV[g.s]})">Market: ${REGN[g.s]}</span>`:''}</div>`}).join('');
  $('#r-score').textContent=r.score;
  const liq=r.median_turnover_cr;
  $('#r-chips').innerHTML=[`<span class="chip">${archetype(r)}</span>`,`<span class="chip ${r.earn_type==='Weak / none'?'bad':'good'}">Earnings: ${r.earn_type}</span>`,`<span class="chip ${liq<1?'bad':''}">₹${liq<1?liq.toFixed(2):liq.toFixed(1)} cr/day</span>`].join('');

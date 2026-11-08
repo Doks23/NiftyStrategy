@@ -73,6 +73,7 @@ On the report, each stock's Setup score panel has **Mark as not a winner**, with
 - **Reclaim**: the first close above the prior 250-session high.
 - **RS**: stock close ÷ benchmark close. It is used in the checklist and the relative-strength story; the chart does not draw it.
 - **Excess**: the stock's daily % change minus the benchmark's daily % change.
+- **Market regime** (on the Smallcap 250): uptrend when the close is above both EMA 10 and EMA 20, downtrend when below both, mixed otherwise. A new regime needs 2 consecutive closes; the change is marked on the confirming close (▲ uptrend, ● mixed, ▼ downtrend), and a thin ribbon under the index shows the current regime. It is computed once from the full index history, so every stock shows the same market signals.
 - **Result date**: an estimate, quarter end + 45 days (+60 for March), the SEBI deadline.
 
 Winners only: there is no comparison group, so the hit rates describe what winners looked like, not how often the setup works.
