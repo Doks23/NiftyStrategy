@@ -316,12 +316,14 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
           <button data-ind="e20" aria-pressed="true" title="20-period EMA on the stock"><i style="background:var(--ema20)"></i>EMA 20</button>
           <button data-ind="m50" aria-pressed="true" title="50-day simple average"><i style="background:var(--ma50)"></i>50</button>
           <button data-ind="m200" aria-pressed="true" title="200-day simple average"><i style="background:var(--ma200)"></i>200</button>
+          <button data-ind="vol" aria-pressed="true" title="Show or hide the volume pane"><i style="background:var(--muted);height:8px;opacity:.6"></i>Volume</button>
           <button data-ind="rib" aria-pressed="true" title="10/20 ribbon: shading between EMA 10 and EMA 20, green when EMA 10 is above, red when below"><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%);height:8px;opacity:.6"></i>Ribbon</button>
           <button data-ind="mb" aria-pressed="true" title="Momentum burst: up more than 4% on 1.4× the 21-day average volume, closing in the top 30% of the open-to-high range"><i style="background:#2196F3;height:8px"></i>MB</button>
           <button data-ind="nr" aria-pressed="true" title="NR7 + inside bar: the narrowest true range of the last 7 bars, inside the previous bar"><i style="background:#E040FB;height:8px"></i>NR7</button>
         </div></div>
         <div class="indgrp"><span class="indlab">Index</span>
         <div class="seg ind" role="group" aria-label="Lines on the Smallcap 250 chart">
+          <button data-ind="ixp" aria-pressed="true" title="Show or hide the Smallcap 250 pane (the regime strip moves to the foot of the price chart)"><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%);height:8px"></i>Chart</button>
           <button data-ind="ie10" aria-pressed="true" title="10-period EMA on the Smallcap 250"><i style="background:var(--ema10)"></i>EMA 10</button>
           <button data-ind="ie20" aria-pressed="true" title="20-period EMA on the Smallcap 250"><i style="background:var(--ema20)"></i>EMA 20</button>
           <button data-ind="rg" aria-pressed="true" title="Market regime on the Smallcap 250: green above EMA 10 and 20, red below both, amber mixed. A marker shows each change, confirmed by 2 closes."><i style="background:linear-gradient(90deg,var(--up) 0 33%,var(--amber) 33% 66%,var(--down) 66% 100%)"></i>Regime</button>
@@ -646,33 +648,36 @@ function draw(){
   timeScale:{borderColor:rule,rightOffset:10,barSpacing:7,minBarSpacing:2},
   crosshair:{mode:L.CrosshairMode.Normal,vertLine:{color:fg,labelBackgroundColor:css('--ink')},horzLine:{color:fg,labelBackgroundColor:css('--ink')}}});
  const line=(c,w,pane,style,extra)=>chart.addSeries(L.LineSeries,{color:c,lineWidth:w,lineStyle:style||0,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,...(extra||{})},pane);
- const VC=!!IND.vc,PV=VC?0:1,PI=VC?0:2,HID=k=>VC?{priceScaleId:k,visible:false}:{};   // volume candles: one pane, the rest hidden
+ const VC=!!IND.vc,HV=VC||!IND.vol,HX=VC||!IND.ixp;            // hidden volume pane / hidden index pane
+ const PV=HV?0:1,PI=HX?0:(HV?1:2);
+ const HIDV=k=>HV?{priceScaleId:k,visible:false}:{},HIDX=k=>HX?{priceScaleId:k,visible:false}:{};
  S={cs:chart.addSeries(L.CandlestickSeries,{upColor:VC?'rgba(0,0,0,0)':css('--up'),downColor:VC?'rgba(0,0,0,0)':css('--down'),wickUpColor:VC?'rgba(0,0,0,0)':css('--up'),wickDownColor:VC?'rgba(0,0,0,0)':css('--down'),borderVisible:false,priceLineVisible:true,priceLineStyle:2,priceFormat:(()=>{const px=rows[rows.length-1][4];const pr=px>=1000?0:px>=100?1:2;return {type:'price',precision:pr,minMove:1/Math.pow(10,pr)}})()},0),
     m50:line(css('--ma50'),1.5,0),m200:line(css('--ma200'),1.5,0),e10:line(css('--ema10'),1.25,0),e20:line(css('--ema20'),1.25,0),
     E10:ema(rows.map(x=>x[4]),10),E20:ema(rows.map(x=>x[4]),20),bh:line(css('--accent'),1,0,2),bl:line(css('--accent'),1,0,2),
-    vol:chart.addSeries(L.HistogramSeries,{priceFormat:{type:'volume'},priceLineVisible:false,lastValueVisible:false,...HID('volx')},PV),
-    v50:line(css('--muted'),1,PV,0,HID('volx')),
-    ix:chart.addSeries(L.CandlestickSeries,{upColor:css('--up'),downColor:css('--down'),wickUpColor:css('--up'),wickDownColor:css('--down'),borderVisible:false,priceLineVisible:false,lastValueVisible:true,priceFormat:{type:'price',precision:0,minMove:1},...HID('ixs')},PI),
-    ie10:line(css('--ema10'),1,PI,0,HID('ixs')),ie20:line(css('--ema20'),1,PI,0,HID('ixs')),
+    vol:chart.addSeries(L.HistogramSeries,{priceFormat:{type:'volume'},priceLineVisible:false,lastValueVisible:false,...HIDV('volx')},PV),
+    v50:line(css('--muted'),1,PV,0,HIDV('volx')),
+    ix:chart.addSeries(L.CandlestickSeries,{upColor:css('--up'),downColor:css('--down'),wickUpColor:css('--up'),wickDownColor:css('--down'),borderVisible:false,priceLineVisible:false,lastValueVisible:true,priceFormat:{type:'price',precision:0,minMove:1},...HIDX('ixs')},PI),
+    ie10:line(css('--ema10'),1,PI,0,HIDX('ixs')),ie20:line(css('--ema20'),1,PI,0,HIDX('ixs')),
     IE10:rows.map(x=>{const k=IDXI.get(x[0]);return k==null?null:REG.e10[k]}),IE20:rows.map(x=>{const k=IDXI.get(x[0]);return k==null?null:REG.e20[k]}),
     rg:chart.addSeries(L.HistogramSeries,{priceScaleId:'rg',priceLineVisible:false,lastValueVisible:false,base:0},PI),
     ua:css('--up-a'),da:css('--down-a'),markers:allMarkers(r,rows)};
  S.mk=L.createSeriesMarkers(S.cs,[]);
  S.ixMk=L.createSeriesMarkers(S.ix,[]);
- S.rgMk=VC?L.createSeriesMarkers(S.rg,[]):null;   // volume candles: regime markers sit on the ribbon
+ S.hideVol=HV;S.hideIx=HX;
+ S.rgMk=HX?L.createSeriesMarkers(S.rg,[]):null;   // index pane hidden: regime strip + markers at the foot of the price pane
  S.SIG=barSignals(rows);
  S.ribUp=(c=>/^#[0-9a-f]{6}$/i.test(c)?c+'2e':c)(css('--up'));S.ribDn=(c=>/^#[0-9a-f]{6}$/i.test(c)?c+'2e':c)(css('--down'));
  S.cs.attachPrimitive(new Ribbon());
  S.vcUp=css('--up');S.vcDn=css('--down');
  if(VC)S.cs.attachPrimitive(new VolCandles());
- try{S.rg.priceScale().applyOptions({scaleMargins:{top:VC?0.955:0.93,bottom:0},visible:false});S.ix.priceScale().applyOptions({scaleMargins:{top:0.06,bottom:0.12}});
-  if(VC)S.cs.priceScale().applyOptions({scaleMargins:{top:0.08,bottom:0.1}})}catch(e){}
+ try{S.rg.priceScale().applyOptions({scaleMargins:{top:HX?0.955:0.93,bottom:0},visible:false});S.ix.priceScale().applyOptions({scaleMargins:{top:0.06,bottom:0.12}});
+  if(HX)S.cs.priceScale().applyOptions({scaleMargins:{top:0.08,bottom:0.1}})}catch(e){}
  const tint=c=>/^#[0-9a-f]{6}$/i.test(c)?c+'99':c;
  S.rgCol={G:tint(css('--up')),A:tint(css('--amber')),R:tint(css('--down'))};
  S.rgMarks=rows.map(x=>{const k=IDXI.get(x[0]);if(k==null||!REG.chg[k])return null;const s=REG.st[k];
   return {time:x[0],position:s==='R'?'aboveBar':'belowBar',shape:s==='G'?'arrowUp':s==='R'?'arrowDown':'circle',color:css(REGV[s]),size:1}}).filter(Boolean);
  const panes=chart.panes();
- try{panes[0].setStretchFactor(60);panes[1].setStretchFactor(15);panes[2].setStretchFactor(25)}catch(e){}
+ try{const wts=[60].concat(HV?[]:[15]).concat(HX?[]:[25]);panes.forEach((pn,k)=>pn.setStretchFactor(wts[k]||10))}catch(e){}
  try{L.createTextWatermark(panes[0],{horzAlign:'center',vertAlign:'center',lines:[{text:cur,color:css('--grid'),fontSize:72,fontStyle:'800'}]})}catch(e){}
  msHook();
  chart.subscribeCrosshairMove(p=>{
@@ -698,7 +703,7 @@ function render(i){
  S.mk.setMarkers(S.markers.filter(m=>m.time<=t&&!(blind&&m.kind==='k')).map(({kind,...m})=>m));
  S.ix.setData(sl.filter(x=>x[12]!=null&&x[IXC]!=null).map(x=>({time:x[0],open:x[12],high:x[13],low:x[14],close:x[IXC]})));
  S.rg.setData(sl.map(x=>{const k=IDXI.get(x[0]),s=k==null?null:REG.st[k];return s?{time:x[0],value:1,color:S.rgCol[s]}:{time:x[0]}}));
- S.ixMk.setMarkers(IND.rg&&!IND.vc?S.rgMarks.filter(m=>m.time<=t):[]);
+ S.ixMk.setMarkers(IND.rg&&!S.hideIx?S.rgMarks.filter(m=>m.time<=t):[]);
  if(S.rgMk)S.rgMk.setMarkers(IND.rg?S.rgMarks.filter(m=>m.time<=t).map(m=>({...m,position:'aboveBar'})):[]);
  legend(i);
  if(rp.on){
@@ -855,15 +860,16 @@ function ema(v,n){const k=2/(n+1),o=[];let e=null,c=0,s=0;
  for(const x of v){if(x==null){o.push(e);continue}
   if(e==null){s+=x;c++;if(c===n)e=s/n;o.push(e)}else{e=x*k+e*(1-k);o.push(e)}}
  return o}
-const IND={e10:true,e20:true,m50:true,m200:true,ie10:true,ie20:true,rg:true,rib:true,mb:true,nr:true,vc:false};
+const IND={e10:true,e20:true,m50:true,m200:true,ie10:true,ie20:true,rg:true,rib:true,mb:true,nr:true,vc:false,vol:true,ixp:true};
 try{Object.assign(IND,JSON.parse(localStorage.getItem('winners-ind')||'{}'))}catch(e){}
 function applyInd(){
- if(S.e10){S.e10.applyOptions({visible:IND.e10});S.e20.applyOptions({visible:IND.e20});S.m50.applyOptions({visible:IND.m50});S.m200.applyOptions({visible:IND.m200});S.ie10.applyOptions({visible:IND.ie10&&!IND.vc});S.ie20.applyOptions({visible:IND.ie20&&!IND.vc});S.rg.applyOptions({visible:IND.rg});if(S.ixMk&&!IND.rg)S.ixMk.setMarkers([])}
+ if(S.e10){S.e10.applyOptions({visible:IND.e10});S.e20.applyOptions({visible:IND.e20});S.m50.applyOptions({visible:IND.m50});S.m200.applyOptions({visible:IND.m200});S.ie10.applyOptions({visible:IND.ie10&&!S.hideIx});S.ie20.applyOptions({visible:IND.ie20&&!S.hideIx});S.rg.applyOptions({visible:IND.rg});if(S.ixMk&&!IND.rg)S.ixMk.setMarkers([])}
  document.querySelectorAll('[data-ind]').forEach(b=>b.setAttribute('aria-pressed',!!IND[b.dataset.ind]));
 }
 document.querySelectorAll('[data-ind]').forEach(b=>b.onclick=()=>{
  IND[b.dataset.ind]=!IND[b.dataset.ind];
  try{localStorage.setItem('winners-ind',JSON.stringify(IND))}catch(e){}
+ if((b.dataset.ind==='vol'||b.dataset.ind==='ixp')&&chart){const vr=chart.timeScale().getVisibleLogicalRange();draw();if(vr&&!rp.on)chart.timeScale().setVisibleLogicalRange(vr);applyInd();return}
  applyInd();if(S.cs)render(rp.on?rp.i:C[cur].length-1);legend(rp.on?rp.i:C[cur].length-1);
 });
 /* ---- measure tool: click two points on the price pane, read the % move ---- */
@@ -1093,7 +1099,7 @@ function composePage({shot,s,box,col}){
  x.fillStyle=col.muted;x.font=`500 ${Math.round(11*s)}px "JetBrains Mono", monospace`;
  const on=[IND.e10&&'EMA 10',IND.e20&&'EMA 20',IND.m50&&'50 DMA',IND.m200&&'200 DMA'].filter(Boolean).join(', ')||'no averages';
  const fit=(txt,y)=>{let t=txt;while(x.measureText(t).width>cv.width-pad*2&&t.length>10)t=t.slice(0,t.lastIndexOf(' · '))||t.slice(0,-2);x.fillText(t,pad,y)};
- fit(IND.vc?`Volume candles: width = volume vs 50-day average (full width at 2.5x or more) · lines: ${on}${IND.rg?' · strip at the foot = Smallcap 250 regime (▲ up ● mixed ▼ down)':''}`:`Panes: price (${on}) · volume · Smallcap 250${IND.rg?' + regime (▲ up ● mixed ▼ down)':''} · Q = est. result date (green/red = profit YoY up/down)`,head+shot.height+Math.round(28*s));
+ fit(IND.vc?`Volume candles: width = volume vs 50-day average (full width at 2.5x or more) · lines: ${on}${IND.rg?' · strip at the foot = Smallcap 250 regime (▲ up ● mixed ▼ down)':''}`:`Panes: price (${on})${S.hideVol?'':' · volume'}${S.hideIx?(IND.rg?' · strip at the foot = Smallcap 250 regime (▲ up ● mixed ▼ down)':''):' · Smallcap 250'+(IND.rg?' + regime (▲ up ● mixed ▼ down)':'')} · Q = est. result date (green/red = profit YoY up/down)`,head+shot.height+Math.round(28*s));
  fit(`Data: Dhan daily prices, Screener.in quarterly results · 2025 Winners Playbook · printed ${fmtD(new Date().toISOString().slice(0,10))}`,head+shot.height+Math.round(45*s));
  return cv;
 }
