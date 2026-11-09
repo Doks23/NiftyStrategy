@@ -311,7 +311,7 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
           <button id="v-full" aria-pressed="false">Whole move</button>
         </div>
         <button class="ms-btn" id="ms-toggle" aria-pressed="false" title="Measure the % move between two points (M)">↕ Measure %</button>
-        <button class="ms-btn" id="vc-btn" type="button" aria-pressed="false" title="Volume candles: each candle's width shows its volume against the 50-day average. Hides the volume and index panes.">▮ Volume candles</button>
+        <button class="ms-btn" id="vc-btn" type="button" aria-pressed="false" title="Volume candles: each candle's width shows its volume against the 50-day average. Hides the volume and index panes; the market regime strip stays at the foot of the chart.">▮ Volume candles</button>
         <button class="ms-btn" id="pr-btn" type="button" title="Save this chart as a print-ready PDF (A4 landscape)">⎙ Print</button><span class="pr-msg" id="pr-msg" aria-live="polite"></span>
         <button class="rp-main" id="rp-toggle" aria-pressed="false">▶ Replay</button>
       </div>
@@ -631,16 +631,18 @@ function draw(){
     ix:chart.addSeries(L.CandlestickSeries,{upColor:css('--up'),downColor:css('--down'),wickUpColor:css('--up'),wickDownColor:css('--down'),borderVisible:false,priceLineVisible:false,lastValueVisible:true,priceFormat:{type:'price',precision:0,minMove:1},...HID('ixs')},PI),
     ie10:line(css('--ema10'),1,PI,0,HID('ixs')),ie20:line(css('--ema20'),1,PI,0,HID('ixs')),
     IE10:rows.map(x=>{const k=IDXI.get(x[0]);return k==null?null:REG.e10[k]}),IE20:rows.map(x=>{const k=IDXI.get(x[0]);return k==null?null:REG.e20[k]}),
-    rg:chart.addSeries(L.HistogramSeries,{priceScaleId:'rg',priceLineVisible:false,lastValueVisible:false,base:0,...(VC?{visible:false}:{})},PI),
+    rg:chart.addSeries(L.HistogramSeries,{priceScaleId:'rg',priceLineVisible:false,lastValueVisible:false,base:0},PI),
     ua:css('--up-a'),da:css('--down-a'),markers:allMarkers(r,rows)};
  S.mk=L.createSeriesMarkers(S.cs,[]);
  S.ixMk=L.createSeriesMarkers(S.ix,[]);
+ S.rgMk=VC?L.createSeriesMarkers(S.rg,[]):null;   // volume candles: regime markers sit on the ribbon
  S.SIG=barSignals(rows);
  S.ribUp=(c=>/^#[0-9a-f]{6}$/i.test(c)?c+'2e':c)(css('--up'));S.ribDn=(c=>/^#[0-9a-f]{6}$/i.test(c)?c+'2e':c)(css('--down'));
  S.cs.attachPrimitive(new Ribbon());
  S.vcUp=css('--up');S.vcDn=css('--down');
  if(VC)S.cs.attachPrimitive(new VolCandles());
- try{S.rg.priceScale().applyOptions({scaleMargins:{top:0.93,bottom:0},visible:false});S.ix.priceScale().applyOptions({scaleMargins:{top:0.06,bottom:0.12}})}catch(e){}
+ try{S.rg.priceScale().applyOptions({scaleMargins:{top:VC?0.955:0.93,bottom:0},visible:false});S.ix.priceScale().applyOptions({scaleMargins:{top:0.06,bottom:0.12}});
+  if(VC)S.cs.priceScale().applyOptions({scaleMargins:{top:0.08,bottom:0.1}})}catch(e){}
  const tint=c=>/^#[0-9a-f]{6}$/i.test(c)?c+'99':c;
  S.rgCol={G:tint(css('--up')),A:tint(css('--amber')),R:tint(css('--down'))};
  S.rgMarks=rows.map(x=>{const k=IDXI.get(x[0]);if(k==null||!REG.chg[k])return null;const s=REG.st[k];
@@ -673,6 +675,7 @@ function render(i){
  S.ix.setData(sl.filter(x=>x[12]!=null&&x[IXC]!=null).map(x=>({time:x[0],open:x[12],high:x[13],low:x[14],close:x[IXC]})));
  S.rg.setData(sl.map(x=>{const k=IDXI.get(x[0]),s=k==null?null:REG.st[k];return s?{time:x[0],value:1,color:S.rgCol[s]}:{time:x[0]}}));
  S.ixMk.setMarkers(IND.rg&&!IND.vc?S.rgMarks.filter(m=>m.time<=t):[]);
+ if(S.rgMk)S.rgMk.setMarkers(IND.rg?S.rgMarks.filter(m=>m.time<=t).map(m=>({...m,position:'aboveBar'})):[]);
  legend(i);
  if(rp.on){
   chart.timeScale().setVisibleLogicalRange({from:Math.max(0,i-160),to:i+14});
@@ -833,7 +836,7 @@ function ema(v,n){const k=2/(n+1),o=[];let e=null,c=0,s=0;
 const IND={e10:true,e20:true,m50:true,m200:true,ie10:true,ie20:true,rg:true,rib:true,mb:true,nr:true,vc:false};
 try{Object.assign(IND,JSON.parse(localStorage.getItem('winners-ind')||'{}'))}catch(e){}
 function applyInd(){
- if(S.e10){S.e10.applyOptions({visible:IND.e10});S.e20.applyOptions({visible:IND.e20});S.m50.applyOptions({visible:IND.m50});S.m200.applyOptions({visible:IND.m200});S.ie10.applyOptions({visible:IND.ie10&&!IND.vc});S.ie20.applyOptions({visible:IND.ie20&&!IND.vc});S.rg.applyOptions({visible:IND.rg&&!IND.vc});if(S.ixMk&&!IND.rg)S.ixMk.setMarkers([])}
+ if(S.e10){S.e10.applyOptions({visible:IND.e10});S.e20.applyOptions({visible:IND.e20});S.m50.applyOptions({visible:IND.m50});S.m200.applyOptions({visible:IND.m200});S.ie10.applyOptions({visible:IND.ie10&&!IND.vc});S.ie20.applyOptions({visible:IND.ie20&&!IND.vc});S.rg.applyOptions({visible:IND.rg});if(S.ixMk&&!IND.rg)S.ixMk.setMarkers([])}
  document.querySelectorAll('[data-ind]').forEach(b=>b.setAttribute('aria-pressed',!!IND[b.dataset.ind]));
 }
 document.querySelectorAll('[data-ind]').forEach(b=>b.onclick=()=>{
@@ -1058,7 +1061,7 @@ function composePage({shot,s,box,col}){
  x.fillStyle=col.muted;x.font=`500 ${Math.round(11*s)}px "JetBrains Mono", monospace`;
  const on=[IND.e10&&'EMA 10',IND.e20&&'EMA 20',IND.m50&&'50 DMA',IND.m200&&'200 DMA'].filter(Boolean).join(', ')||'no averages';
  const fit=(txt,y)=>{let t=txt;while(x.measureText(t).width>cv.width-pad*2&&t.length>10)t=t.slice(0,t.lastIndexOf(' · '))||t.slice(0,-2);x.fillText(t,pad,y)};
- fit(IND.vc?`Volume candles: candle width = volume vs its 50-day average · lines: ${on}`:`Panes: price (${on}) · volume · Smallcap 250${IND.rg?' + regime (▲ up ● mixed ▼ down)':''} · Q = est. result date (green/red = profit YoY up/down)`,head+shot.height+Math.round(28*s));
+ fit(IND.vc?`Volume candles: candle width = volume vs its 50-day average · lines: ${on}${IND.rg?' · strip at the foot = Smallcap 250 regime (▲ up ● mixed ▼ down)':''}`:`Panes: price (${on}) · volume · Smallcap 250${IND.rg?' + regime (▲ up ● mixed ▼ down)':''} · Q = est. result date (green/red = profit YoY up/down)`,head+shot.height+Math.round(28*s));
  fit(`Data: Dhan daily prices, Screener.in quarterly results · 2025 Winners Playbook · printed ${fmtD(new Date().toISOString().slice(0,10))}`,head+shot.height+Math.round(45*s));
  return cv;
 }
