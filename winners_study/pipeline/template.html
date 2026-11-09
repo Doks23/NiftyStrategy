@@ -311,6 +311,7 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
           <button id="v-full" aria-pressed="false">Whole move</button>
         </div>
         <button class="ms-btn" id="ms-toggle" aria-pressed="false" title="Measure the % move between two points (M)">↕ Measure %</button>
+        <button class="ms-btn" id="vc-btn" type="button" aria-pressed="false" title="Volume candles: each candle's width shows its volume against the 50-day average. Hides the volume and index panes.">▮ Volume candles</button>
         <button class="ms-btn" id="pr-btn" type="button" title="Save this chart as a print-ready PDF (A4 landscape)">⎙ Print</button><span class="pr-msg" id="pr-msg" aria-live="polite"></span>
         <button class="rp-main" id="rp-toggle" aria-pressed="false">▶ Replay</button>
       </div>
@@ -621,21 +622,24 @@ function draw(){
   timeScale:{borderColor:rule,rightOffset:10,barSpacing:7,minBarSpacing:2},
   crosshair:{mode:L.CrosshairMode.Normal,vertLine:{color:fg,labelBackgroundColor:css('--ink')},horzLine:{color:fg,labelBackgroundColor:css('--ink')}}});
  const line=(c,w,pane,style,extra)=>chart.addSeries(L.LineSeries,{color:c,lineWidth:w,lineStyle:style||0,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,...(extra||{})},pane);
- S={cs:chart.addSeries(L.CandlestickSeries,{upColor:css('--up'),downColor:css('--down'),wickUpColor:css('--up'),wickDownColor:css('--down'),borderVisible:false,priceLineVisible:true,priceLineStyle:2,priceFormat:(()=>{const px=rows[rows.length-1][4];const pr=px>=1000?0:px>=100?1:2;return {type:'price',precision:pr,minMove:1/Math.pow(10,pr)}})()},0),
+ const VC=!!IND.vc,PV=VC?0:1,PI=VC?0:2,HID=k=>VC?{priceScaleId:k,visible:false}:{};   // volume candles: one pane, the rest hidden
+ S={cs:chart.addSeries(L.CandlestickSeries,{upColor:VC?'rgba(0,0,0,0)':css('--up'),downColor:VC?'rgba(0,0,0,0)':css('--down'),wickUpColor:VC?'rgba(0,0,0,0)':css('--up'),wickDownColor:VC?'rgba(0,0,0,0)':css('--down'),borderVisible:false,priceLineVisible:true,priceLineStyle:2,priceFormat:(()=>{const px=rows[rows.length-1][4];const pr=px>=1000?0:px>=100?1:2;return {type:'price',precision:pr,minMove:1/Math.pow(10,pr)}})()},0),
     m50:line(css('--ma50'),1.5,0),m200:line(css('--ma200'),1.5,0),e10:line(css('--ema10'),1.25,0),e20:line(css('--ema20'),1.25,0),
     E10:ema(rows.map(x=>x[4]),10),E20:ema(rows.map(x=>x[4]),20),bh:line(css('--accent'),1,0,2),bl:line(css('--accent'),1,0,2),
-    vol:chart.addSeries(L.HistogramSeries,{priceFormat:{type:'volume'},priceLineVisible:false,lastValueVisible:false},1),
-    v50:line(css('--muted'),1,1),
-    ix:chart.addSeries(L.CandlestickSeries,{upColor:css('--up'),downColor:css('--down'),wickUpColor:css('--up'),wickDownColor:css('--down'),borderVisible:false,priceLineVisible:false,lastValueVisible:true,priceFormat:{type:'price',precision:0,minMove:1}},2),
-    ie10:line(css('--ema10'),1,2),ie20:line(css('--ema20'),1,2),
+    vol:chart.addSeries(L.HistogramSeries,{priceFormat:{type:'volume'},priceLineVisible:false,lastValueVisible:false,...HID('volx')},PV),
+    v50:line(css('--muted'),1,PV,0,HID('volx')),
+    ix:chart.addSeries(L.CandlestickSeries,{upColor:css('--up'),downColor:css('--down'),wickUpColor:css('--up'),wickDownColor:css('--down'),borderVisible:false,priceLineVisible:false,lastValueVisible:true,priceFormat:{type:'price',precision:0,minMove:1},...HID('ixs')},PI),
+    ie10:line(css('--ema10'),1,PI,0,HID('ixs')),ie20:line(css('--ema20'),1,PI,0,HID('ixs')),
     IE10:rows.map(x=>{const k=IDXI.get(x[0]);return k==null?null:REG.e10[k]}),IE20:rows.map(x=>{const k=IDXI.get(x[0]);return k==null?null:REG.e20[k]}),
-    rg:chart.addSeries(L.HistogramSeries,{priceScaleId:'rg',priceLineVisible:false,lastValueVisible:false,base:0},2),
+    rg:chart.addSeries(L.HistogramSeries,{priceScaleId:'rg',priceLineVisible:false,lastValueVisible:false,base:0,...(VC?{visible:false}:{})},PI),
     ua:css('--up-a'),da:css('--down-a'),markers:allMarkers(r,rows)};
  S.mk=L.createSeriesMarkers(S.cs,[]);
  S.ixMk=L.createSeriesMarkers(S.ix,[]);
  S.SIG=barSignals(rows);
  S.ribUp=(c=>/^#[0-9a-f]{6}$/i.test(c)?c+'2e':c)(css('--up'));S.ribDn=(c=>/^#[0-9a-f]{6}$/i.test(c)?c+'2e':c)(css('--down'));
  S.cs.attachPrimitive(new Ribbon());
+ S.vcUp=css('--up');S.vcDn=css('--down');
+ if(VC)S.cs.attachPrimitive(new VolCandles());
  try{S.rg.priceScale().applyOptions({scaleMargins:{top:0.93,bottom:0},visible:false});S.ix.priceScale().applyOptions({scaleMargins:{top:0.06,bottom:0.12}})}catch(e){}
  const tint=c=>/^#[0-9a-f]{6}$/i.test(c)?c+'99':c;
  S.rgCol={G:tint(css('--up')),A:tint(css('--amber')),R:tint(css('--down'))};
@@ -657,7 +661,7 @@ function render(i){
  const r=A.find(x=>x.stock===cur),rows=C[cur],sl=rows.slice(0,i+1);
  const ser=k=>sl.filter(x=>x[k]!=null).map(x=>({time:x[0],value:x[k]}));
  S.lastI=i;
- S.cs.setData(sl.map((x,k)=>{const b={time:x[0],open:x[1],high:x[2],low:x[3],close:x[4]},c=IND.mb&&S.SIG.mb[k]?'#2196F3':IND.nr&&S.SIG.nr[k]?'#E040FB':null;return c?{...b,color:c,borderColor:c,wickColor:c}:b}));
+ S.cs.setData(sl.map((x,k)=>{const b={time:x[0],open:x[1],high:x[2],low:x[3],close:x[4]},c=IND.vc?null:IND.mb&&S.SIG.mb[k]?'#2196F3':IND.nr&&S.SIG.nr[k]?'#E040FB':null;return c?{...b,color:c,borderColor:c,wickColor:c}:b}));
  S.m50.setData(ser(6));S.m200.setData(ser(7));S.v50.setData(ser(8));
  const eS=E=>sl.map((x,k)=>({time:x[0],value:E[k]})).filter(z=>z.value!=null);S.e10.setData(eS(S.E10));S.e20.setData(eS(S.E20));S.ie10.setData(eS(S.IE10));S.ie20.setData(eS(S.IE20));applyInd();
  S.vol.setData(sl.map(x=>({time:x[0],value:x[5],color:x[4]>=x[1]?S.ua:S.da})));
@@ -668,7 +672,7 @@ function render(i){
  S.mk.setMarkers(S.markers.filter(m=>m.time<=t&&!(blind&&m.kind==='k')).map(({kind,...m})=>m));
  S.ix.setData(sl.filter(x=>x[12]!=null&&x[IXC]!=null).map(x=>({time:x[0],open:x[12],high:x[13],low:x[14],close:x[IXC]})));
  S.rg.setData(sl.map(x=>{const k=IDXI.get(x[0]),s=k==null?null:REG.st[k];return s?{time:x[0],value:1,color:S.rgCol[s]}:{time:x[0]}}));
- S.ixMk.setMarkers(IND.rg?S.rgMarks.filter(m=>m.time<=t):[]);
+ S.ixMk.setMarkers(IND.rg&&!IND.vc?S.rgMarks.filter(m=>m.time<=t):[]);
  legend(i);
  if(rp.on){
   chart.timeScale().setVisibleLogicalRange({from:Math.max(0,i-160),to:i+14});
@@ -789,15 +793,47 @@ class Ribbon{
   });
  }
 }
+/* ---- volume candles: candle width = volume / 50-day average volume (clamped 0.3x-2.2x) ----
+   The library cannot vary candle width, so its own candles go transparent (they still drive the
+   price scale, crosshair and markers) and this primitive draws the real ones. */
+class VolCandles{
+ constructor(){const self=this;this._view={zOrder:()=>'normal',renderer:()=>({draw:tg=>self._draw(tg)})}}
+ attached(){} detached(){} updateAllViews(){} paneViews(){return [this._view]}
+ _draw(target){
+  if(!IND.vc||!chart||!S.cs)return;
+  const rows=C[cur],ts=chart.timeScale(),vr=ts.getVisibleLogicalRange();if(!vr)return;
+  const last=S.lastI??rows.length-1,a=Math.max(0,Math.floor(vr.from)-3),b=Math.min(last,Math.ceil(vr.to)+3);
+  const p0=ts.logicalToCoordinate(a),p1=ts.logicalToCoordinate(a+1),sp=p0!=null&&p1!=null?Math.abs(p1-p0):6;
+  target.useBitmapCoordinateSpace(({context:ctx,horizontalPixelRatio:hr,verticalPixelRatio:vp})=>{
+   const order=[];for(let k=a;k<=b;k++)order.push(k);
+   order.sort((p,q)=>(rows[p][5]/(rows[p][8]||rows[p][5]))-(rows[q][5]/(rows[q][8]||rows[q][5])));   // fat candles on top
+   for(const k of order){
+    const r=rows[k],o=r[1],h=r[2],l=r[3],c=r[4],v=r[5],v50=r[8],x=ts.logicalToCoordinate(k);if(x==null)continue;
+    const yo=S.cs.priceToCoordinate(o),yh=S.cs.priceToCoordinate(h),yl=S.cs.priceToCoordinate(l),yc=S.cs.priceToCoordinate(c);
+    if(yo==null||yh==null||yl==null||yc==null)continue;
+    const rel=v50?v/v50:1,w=Math.max(1,sp*0.8*Math.min(2.2,Math.max(0.3,rel)));
+    ctx.fillStyle=IND.mb&&S.SIG.mb[k]?'#2196F3':IND.nr&&S.SIG.nr[k]?'#E040FB':c>=o?S.vcUp:S.vcDn;
+    const ww=Math.max(1,Math.floor(hr));ctx.fillRect(Math.round(x*hr)-Math.floor(ww/2),Math.round(yh*vp),ww,Math.max(1,Math.round((yl-yh)*vp)));
+    const top=Math.min(yo,yc),bw=Math.max(1,Math.round(w*hr));
+    ctx.fillRect(Math.round(x*hr-bw/2),Math.round(top*vp),bw,Math.max(1,Math.round(Math.abs(yc-yo)*vp)));
+   }
+  });
+ }
+}
+function setVC(on){
+ IND.vc=on;try{localStorage.setItem('winners-ind',JSON.stringify(IND))}catch(e){}
+ $('#vc-btn').setAttribute('aria-pressed',on);
+ if(!chart)return;const vr=chart.timeScale().getVisibleLogicalRange();draw();if(vr&&!rp.on)chart.timeScale().setVisibleLogicalRange(vr);
+}
 /* ---- moving-average toggles (EMA 10 / EMA 20 / 50 DMA / 200 DMA) ---- */
 function ema(v,n){const k=2/(n+1),o=[];let e=null,c=0,s=0;
  for(const x of v){if(x==null){o.push(e);continue}
   if(e==null){s+=x;c++;if(c===n)e=s/n;o.push(e)}else{e=x*k+e*(1-k);o.push(e)}}
  return o}
-const IND={e10:true,e20:true,m50:true,m200:true,ie10:true,ie20:true,rg:true,rib:true,mb:true,nr:true};
+const IND={e10:true,e20:true,m50:true,m200:true,ie10:true,ie20:true,rg:true,rib:true,mb:true,nr:true,vc:false};
 try{Object.assign(IND,JSON.parse(localStorage.getItem('winners-ind')||'{}'))}catch(e){}
 function applyInd(){
- if(S.e10){S.e10.applyOptions({visible:IND.e10});S.e20.applyOptions({visible:IND.e20});S.m50.applyOptions({visible:IND.m50});S.m200.applyOptions({visible:IND.m200});S.ie10.applyOptions({visible:IND.ie10});S.ie20.applyOptions({visible:IND.ie20});S.rg.applyOptions({visible:IND.rg});if(S.ixMk&&!IND.rg)S.ixMk.setMarkers([])}
+ if(S.e10){S.e10.applyOptions({visible:IND.e10});S.e20.applyOptions({visible:IND.e20});S.m50.applyOptions({visible:IND.m50});S.m200.applyOptions({visible:IND.m200});S.ie10.applyOptions({visible:IND.ie10&&!IND.vc});S.ie20.applyOptions({visible:IND.ie20&&!IND.vc});S.rg.applyOptions({visible:IND.rg&&!IND.vc});if(S.ixMk&&!IND.rg)S.ixMk.setMarkers([])}
  document.querySelectorAll('[data-ind]').forEach(b=>b.setAttribute('aria-pressed',!!IND[b.dataset.ind]));
 }
 document.querySelectorAll('[data-ind]').forEach(b=>b.onclick=()=>{
@@ -1022,7 +1058,7 @@ function composePage({shot,s,box,col}){
  x.fillStyle=col.muted;x.font=`500 ${Math.round(11*s)}px "JetBrains Mono", monospace`;
  const on=[IND.e10&&'EMA 10',IND.e20&&'EMA 20',IND.m50&&'50 DMA',IND.m200&&'200 DMA'].filter(Boolean).join(', ')||'no averages';
  const fit=(txt,y)=>{let t=txt;while(x.measureText(t).width>cv.width-pad*2&&t.length>10)t=t.slice(0,t.lastIndexOf(' · '))||t.slice(0,-2);x.fillText(t,pad,y)};
- fit(`Panes: price (${on}) · volume · Smallcap 250${IND.rg?' + regime (▲ up ● mixed ▼ down)':''} · Q = est. result date (green/red = profit YoY up/down)`,head+shot.height+Math.round(28*s));
+ fit(IND.vc?`Volume candles: candle width = volume vs its 50-day average · lines: ${on}`:`Panes: price (${on}) · volume · Smallcap 250${IND.rg?' + regime (▲ up ● mixed ▼ down)':''} · Q = est. result date (green/red = profit YoY up/down)`,head+shot.height+Math.round(28*s));
  fit(`Data: Dhan daily prices, Screener.in quarterly results · 2025 Winners Playbook · printed ${fmtD(new Date().toISOString().slice(0,10))}`,head+shot.height+Math.round(45*s));
  return cv;
 }
@@ -1041,4 +1077,5 @@ async function printChart(){
  setTimeout(()=>prMsg(''),6000);
 }
 $('#pr-btn').onclick=printChart;
+$('#vc-btn').onclick=()=>setVC(!IND.vc);$('#vc-btn').setAttribute('aria-pressed',!!IND.vc);
 </script>
