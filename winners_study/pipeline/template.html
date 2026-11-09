@@ -181,9 +181,9 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
 .ms-box{position:absolute;z-index:2;pointer-events:none;border:1px solid}
 .ms-box.up{background:color-mix(in srgb,var(--up) 14%,transparent);border-color:var(--up)}
 .ms-box.dn{background:color-mix(in srgb,var(--down) 14%,transparent);border-color:var(--down)}
-.ms-lab{position:absolute;z-index:4;pointer-events:none;display:flex;gap:10px;align-items:baseline;white-space:nowrap;font-family:var(--f-mono);font-size:12px;padding:5px 9px;border-radius:5px;color:#fff;font-variant-numeric:tabular-nums;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.ms-lab{position:absolute;z-index:4;pointer-events:none;display:flex;gap:10px;align-items:baseline;white-space:nowrap;font-family:var(--f-mono);font-size:12px;padding:4px 9px;border-radius:5px;font-variant-numeric:tabular-nums;border:1px solid;background:var(--sheet)}
 .ms-lab b{font-size:13px}
-.ms-lab.up{background:var(--up)}.ms-lab.dn{background:var(--down)}
+.ms-lab.up{color:var(--up);border-color:var(--up);background:color-mix(in srgb,var(--up) 14%,var(--sheet))}.ms-lab.dn{color:var(--down);border-color:var(--down);background:color-mix(in srgb,var(--down) 14%,var(--sheet))}
 .ms-hint{position:absolute;top:30px;left:10px;z-index:4;pointer-events:none;font-family:var(--f-mono);font-size:11.5px;background:var(--ink);color:var(--paper);padding:4px 8px;border-radius:4px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 /* ---- workstation ---- */
@@ -539,10 +539,10 @@ function idxOf(rows,d){for(let k=0;k<rows.length;k++)if(rows[k][0]>=d)return k;r
 function addDays(d,n){const x=new Date(d+'T00:00:00');x.setDate(x.getDate()+n);return x.toISOString().slice(0,10)}
 function allMarkers(r,rows){
  const M=[];const add=(d,o,kind)=>{const t=snap(rows,d);if(t)M.push({time:t,kind,...o})};
- add(r.low_date,{position:'belowBar',shape:'arrowUp',color:css('--up'),text:'Low'},'k');
- add(r.bo_date,{position:'belowBar',shape:'arrowUp',color:css('--accent'),text:'BO '+r.bo_vol_x+'×'},'k');
- if(r.nh_date)add(r.nh_date,{position:'belowBar',shape:'circle',color:css('--rs'),text:'52wH'},'k');
- add(r.high_date,{position:'aboveBar',shape:'arrowDown',color:css('--down'),text:'Top'},'k');
+ add(r.low_date,{position:'belowBar',shape:'arrowUp',color:css('--up'),text:'▲ Low'},'k');
+ add(r.bo_date,{position:'belowBar',shape:'arrowUp',color:css('--accent'),text:'▲ BO '+r.bo_vol_x+'×'},'k');
+ if(r.nh_date)add(r.nh_date,{position:'belowBar',shape:'circle',color:css('--rs'),text:'● 52wH'},'k');
+ add(r.high_date,{position:'aboveBar',shape:'arrowDown',color:css('--down'),text:'▼ Top'},'k');
  r.earnings.forEach(e=>{if(e.rd<rows[0][0]||e.rd>rows[rows.length-1][0])return;const np=e.np_yoy==null?'':e.np_yoy===999?' TA':' '+fmtPct(e.np_yoy);add(e.rd,{position:'aboveBar',shape:'square',color:e.np_yoy==null?css('--muted'):(e.np_yoy>=0?css('--up'):css('--down')),text:'Q'+np},'q')});
  return M.sort((a,b)=>a.time.localeCompare(b.time));
 }
@@ -666,7 +666,7 @@ function draw(){
  S.SIG=barSignals(rows);
  S.ribUp=(c=>/^#[0-9a-f]{6}$/i.test(c)?c+'2e':c)(css('--up'));S.ribDn=(c=>/^#[0-9a-f]{6}$/i.test(c)?c+'2e':c)(css('--down'));
  S.cs.attachPrimitive(new Ribbon());
- S.cs.attachPrimitive(new EarnBadges());
+ S.cs.attachPrimitive(new Badges());S.sheet=bg;
  S.vcUp=css('--up');S.vcDn=css('--down');
  if(VC)S.cs.attachPrimitive(new VolCandles());
  try{S.rg.priceScale().applyOptions({scaleMargins:{top:HX?0.955:0.93,bottom:0},visible:false});S.ix.priceScale().applyOptions({scaleMargins:{top:0.06,bottom:0.12}});
@@ -699,7 +699,8 @@ function render(i){
  const bx=t>=r.bo_date?rows.filter(x=>x[0]>=r.base_start&&x[0]<=r.bo_date):[];
  S.bh.setData(bx.map(x=>({time:x[0],value:r.base_hi})));S.bl.setData(bx.map(x=>({time:x[0],value:r.base_lo})));
  const blind=rp.on&&$('#rp-blind').checked;
- S.mk.setMarkers(S.markers.filter(m=>m.kind!=='q'&&m.time<=t&&!(blind&&m.kind==='k')).map(({kind,...m})=>m));
+ S.mk.setMarkers([]);   // labels are drawn as tinted badges (Badges primitive)
+ S.blind=blind;
  S.ix.setData(sl.filter(x=>x[12]!=null&&x[IXC]!=null).map(x=>({time:x[0],open:x[12],high:x[13],low:x[14],close:x[IXC]})));
  S.rg.setData(sl.map(x=>{const k=IDXI.get(x[0]),s=k==null?null:REG.st[k];return s?{time:x[0],value:1,color:S.rgCol[s]}:{time:x[0]}}));
  S.ixMk.setMarkers(IND.rg&&!S.hideIx?S.rgMarks.filter(m=>m.time<=t):[]);
@@ -804,8 +805,8 @@ function barSignals(rows){
  return {mb,nr};
 }
 /* ---- 10/20 ribbon: the chart library cannot fill between two lines, so a pane primitive draws it ---- */
-/* ---- quarterly-result badges: outlined, lightly tinted, so they never read as candles ---- */
-class EarnBadges{
+/* ---- chart labels (Low, BO, 52wH, Top, quarterly results): outlined, lightly tinted badges ---- */
+class Badges{
  constructor(){const self=this;this._view={zOrder:()=>'top',renderer:()=>({draw:tg=>self._draw(tg)})}}
  attached(){} detached(){} updateAllViews(){} paneViews(){return [this._view]}
  _draw(target){
@@ -813,14 +814,19 @@ class EarnBadges{
   const rows=C[cur],ts=chart.timeScale(),last=S.lastI??rows.length-1,lastT=rows[last][0];
   target.useMediaCoordinateSpace(({context:ctx})=>{
    ctx.font='600 10.5px "JetBrains Mono", ui-monospace, monospace';ctx.textBaseline='middle';ctx.textAlign='center';
+   const stack={};                                  // badges on the same bar and side stack instead of overlapping
    for(const m of S.markers){
-    if(m.kind!=='q'||m.time>lastT)continue;
-    const k=idxOf(rows,m.time),x=ts.logicalToCoordinate(k),yh=S.cs.priceToCoordinate(rows[k][2]);if(x==null||yh==null)continue;
-    const w=ctx.measureText(m.text).width+10,h=16,bx=x-w/2,by=yh-h-10;
-    ctx.globalAlpha=0.14;ctx.fillStyle=m.color;ctx.beginPath();ctx.roundRect?ctx.roundRect(bx,by,w,h,4):ctx.rect(bx,by,w,h);ctx.fill();
+    if(m.time>lastT||(S.blind&&m.kind==='k'))continue;
+    const k=idxOf(rows,m.time),x=ts.logicalToCoordinate(k);if(x==null)continue;
+    const below=m.position==='belowBar',yb=S.cs.priceToCoordinate(rows[k][below?3:2]);if(yb==null)continue;
+    const key=k+(below?'b':'a'),n=stack[key]=(stack[key]||0)+1,h=16,gap=10+(n-1)*(h+4);
+    const w=ctx.measureText(m.text).width+10,bx=x-w/2,by=below?yb+gap:yb-h-gap,yh=below?yb+3:yb-3,tickFrom=below?by:by+h;
+    ctx.beginPath();ctx.roundRect?ctx.roundRect(bx,by,w,h,4):ctx.rect(bx,by,w,h);
+    ctx.globalAlpha=0.94;ctx.fillStyle=S.sheet;ctx.fill();   // page-coloured base so candles behind do not show through
+    ctx.globalAlpha=0.16;ctx.fillStyle=m.color;ctx.fill();
     ctx.globalAlpha=0.9;ctx.strokeStyle=m.color;ctx.lineWidth=1;ctx.beginPath();ctx.roundRect?ctx.roundRect(bx+.5,by+.5,w-1,h-1,4):ctx.rect(bx+.5,by+.5,w-1,h-1);ctx.stroke();
     ctx.globalAlpha=1;ctx.fillStyle=m.color;ctx.fillText(m.text,x,by+h/2+.5);
-    ctx.globalAlpha=0.5;ctx.beginPath();ctx.moveTo(x,by+h);ctx.lineTo(x,yh-3);ctx.stroke();ctx.globalAlpha=1;   // thin tick down to the bar
+    if(n===1){ctx.globalAlpha=0.5;ctx.beginPath();ctx.moveTo(x,tickFrom);ctx.lineTo(x,yh);ctx.stroke();ctx.globalAlpha=1}   // thin tick to the bar
    }
   });
  }
@@ -1114,7 +1120,7 @@ function composePage({shot,s,box,col}){
  if(box){const bx=pad+Math.min(box.xa,box.xb)*s,by=head+Math.min(box.ya,box.yb)*s,bw=Math.abs(box.xb-box.xa)*s,bh=Math.abs(box.yb-box.ya)*s,c=box.up?col.up:col.down;
   x.fillStyle=c+'24';x.fillRect(bx,by,bw,bh);x.strokeStyle=c;x.lineWidth=Math.max(1,s);x.strokeRect(bx,by,bw,bh);
   x.font=`600 ${Math.round(12*s)}px "JetBrains Mono", monospace`;const tw=x.measureText(box.txt).width+12*s,th=20*s,ty=box.up?by-th-4*s:by+bh+4*s;
-  x.fillStyle=c;x.fillRect(bx+bw/2-tw/2,ty,tw,th);x.fillStyle='#fff';x.fillText(box.txt,bx+bw/2-tw/2+6*s,ty+14*s)}
+  x.fillStyle='#ffffff';x.fillRect(bx+bw/2-tw/2,ty,tw,th);x.fillStyle=c+'24';x.fillRect(bx+bw/2-tw/2,ty,tw,th);x.strokeStyle=c;x.strokeRect(bx+bw/2-tw/2,ty,tw,th);x.fillStyle=c;x.fillText(box.txt,bx+bw/2-tw/2+6*s,ty+14*s)}
  x.strokeStyle=col.rule;x.lineWidth=Math.max(1,s);x.beginPath();x.moveTo(pad,head+shot.height+Math.round(10*s));x.lineTo(cv.width-pad,head+shot.height+Math.round(10*s));x.stroke();
  x.fillStyle=col.muted;x.font=`500 ${Math.round(11*s)}px "JetBrains Mono", monospace`;
  const on=[IND.e10&&'EMA 10',IND.e20&&'EMA 20',IND.m50&&'50 DMA',IND.m200&&'200 DMA'].filter(Boolean).join(', ')||'no averages';
