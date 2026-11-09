@@ -296,6 +296,9 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
           <button data-ind="e20" aria-pressed="true" title="20-period EMA on the stock"><i style="background:var(--ema20)"></i>EMA 20</button>
           <button data-ind="m50" aria-pressed="true" title="50-day simple average"><i style="background:var(--ma50)"></i>50</button>
           <button data-ind="m200" aria-pressed="true" title="200-day simple average"><i style="background:var(--ma200)"></i>200</button>
+          <button data-ind="rib" aria-pressed="true" title="10/20 ribbon: shading between EMA 10 and EMA 20, green when EMA 10 is above, red when below"><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%);height:8px;opacity:.6"></i>Ribbon</button>
+          <button data-ind="mb" aria-pressed="true" title="Momentum burst: up more than 4% on 1.4× the 21-day average volume, closing in the top 30% of the open-to-high range"><i style="background:#2196F3;height:8px"></i>MB</button>
+          <button data-ind="nr" aria-pressed="true" title="NR7 + inside bar: the narrowest true range of the last 7 bars, inside the previous bar"><i style="background:#E040FB;height:8px"></i>NR7</button>
         </div></div>
         <div class="indgrp"><span class="indlab">Index</span>
         <div class="seg ind" role="group" aria-label="Lines on the Smallcap 250 chart">
@@ -342,7 +345,7 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
     <div class="readout" id="readout" hidden></div>
     <div class="ws-foot">
       <div class="timeline" id="timeline"></div>
-      <div class="keys"><span><i style="background:var(--ema10)"></i>EMA 10</span><span><i style="background:var(--ema20)"></i>EMA 20</span><span><i style="background:var(--ma50)"></i>50 DMA</span><span><i style="background:var(--ma200)"></i>200 DMA</span><span><i style="background:var(--accent);opacity:.6"></i>Pre-breakout range</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Q = result (est.): green if net profit YoY ≥ 0, red if negative</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Nifty Smallcap 250 (candles; its EMA 10/20 toggle separately)</span><span><i style="background:linear-gradient(90deg,var(--up) 0 33%,var(--amber) 33% 66%,var(--down) 66% 100%)"></i>Market regime (ribbon under the index): ▲ uptrend = above EMA 10 and 20 · ● mixed · ▼ downtrend = below both; a marker shows each change, confirmed by 2 closes</span></div>
+      <div class="keys"><span><i style="background:var(--ema10)"></i>EMA 10</span><span><i style="background:var(--ema20)"></i>EMA 20</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%);opacity:.5"></i>10/20 ribbon</span><span><i style="background:#2196F3"></i>Momentum burst candle</span><span><i style="background:#E040FB"></i>NR7 + inside bar candle</span><span><i style="background:var(--ma50)"></i>50 DMA</span><span><i style="background:var(--ma200)"></i>200 DMA</span><span><i style="background:var(--accent);opacity:.6"></i>Pre-breakout range</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Q = result (est.): green if net profit YoY ≥ 0, red if negative</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Nifty Smallcap 250 (candles; its EMA 10/20 toggle separately)</span><span><i style="background:linear-gradient(90deg,var(--up) 0 33%,var(--amber) 33% 66%,var(--down) 66% 100%)"></i>Market regime (ribbon under the index): ▲ uptrend = above EMA 10 and 20 · ● mixed · ▼ downtrend = below both; a marker shows each change, confirmed by 2 closes</span></div>
     </div>
   </div>
   <div class="info3">
@@ -598,6 +601,7 @@ function legend(i){
  $('#legend').innerHTML=`<span><b>${cur}</b> <span class="lb">· 1D · NSE</span></span>`+
   `<span><span class="lb">O</span> <b style="color:${col}">${f(x[1])}</b></span><span><span class="lb">H</span> <b style="color:${col}">${f(x[2])}</b></span><span><span class="lb">L</span> <b style="color:${col}">${f(x[3])}</b></span><span><span class="lb">C</span> <b style="color:${col}">${f(x[4])}</b> <span style="color:${col}">${ch>=0?'+':''}${ch.toFixed(2)}%</span></span>`+
   `<span><span class="lb">Vol</span> <b>${fmtV(x[5])}</b>${x[8]?` <span class="lb">(${(x[5]/x[8]).toFixed(1)}× avg)</span>`:''}</span>`+
+  (S.SIG&&IND.mb&&S.SIG.mb[i]?`<span style="color:#2196F3;font-weight:600">Momentum burst</span>`:S.SIG&&IND.nr&&S.SIG.nr[i]?`<span style="color:#E040FB;font-weight:600">NR7 + inside bar</span>`:'')+
   (IND.e10&&S.E10?`<span style="color:var(--ema10)">EMA10 ${f(S.E10[i])}</span>`:'')+(IND.e20&&S.E20?`<span style="color:var(--ema20)">EMA20 ${f(S.E20[i])}</span>`:'')+
   (IND.m50?`<span style="color:var(--ma50)">50 ${f(x[6])}</span>`:'')+(IND.m200?`<span style="color:var(--ma200)">200 ${f(x[7])}</span>`:'')+
   (x[IXCH]!=null?`<span><span class="lb">SC250</span> <b style="color:${x[IXCH]>=0?'var(--good)':'var(--bad)'}">${fmtPct(x[IXCH])}</b></span><span><span class="lb">Excess</span> <b>${fmtPct(ch-x[IXCH])}</b></span>`:'')+
@@ -629,6 +633,9 @@ function draw(){
     ua:css('--up-a'),da:css('--down-a'),markers:allMarkers(r,rows)};
  S.mk=L.createSeriesMarkers(S.cs,[]);
  S.ixMk=L.createSeriesMarkers(S.ix,[]);
+ S.SIG=barSignals(rows);
+ S.ribUp=(c=>/^#[0-9a-f]{6}$/i.test(c)?c+'2e':c)(css('--up'));S.ribDn=(c=>/^#[0-9a-f]{6}$/i.test(c)?c+'2e':c)(css('--down'));
+ S.cs.attachPrimitive(new Ribbon());
  try{S.rg.priceScale().applyOptions({scaleMargins:{top:0.93,bottom:0},visible:false});S.ix.priceScale().applyOptions({scaleMargins:{top:0.06,bottom:0.12}})}catch(e){}
  const tint=c=>/^#[0-9a-f]{6}$/i.test(c)?c+'99':c;
  S.rgCol={G:tint(css('--up')),A:tint(css('--amber')),R:tint(css('--down'))};
@@ -649,7 +656,8 @@ function draw(){
 function render(i){
  const r=A.find(x=>x.stock===cur),rows=C[cur],sl=rows.slice(0,i+1);
  const ser=k=>sl.filter(x=>x[k]!=null).map(x=>({time:x[0],value:x[k]}));
- S.cs.setData(sl.map(x=>({time:x[0],open:x[1],high:x[2],low:x[3],close:x[4]})));
+ S.lastI=i;
+ S.cs.setData(sl.map((x,k)=>{const b={time:x[0],open:x[1],high:x[2],low:x[3],close:x[4]},c=IND.mb&&S.SIG.mb[k]?'#2196F3':IND.nr&&S.SIG.nr[k]?'#E040FB':null;return c?{...b,color:c,borderColor:c,wickColor:c}:b}));
  S.m50.setData(ser(6));S.m200.setData(ser(7));S.v50.setData(ser(8));
  const eS=E=>sl.map((x,k)=>({time:x[0],value:E[k]})).filter(z=>z.value!=null);S.e10.setData(eS(S.E10));S.e20.setData(eS(S.E20));S.ie10.setData(eS(S.IE10));S.ie20.setData(eS(S.IE20));applyInd();
  S.vol.setData(sl.map(x=>({time:x[0],value:x[5],color:x[4]>=x[1]?S.ua:S.da})));
@@ -746,12 +754,47 @@ function focusBar(i){
  legend(i);try{chart.setCrosshairPosition(rows[i][4],rows[i][0],S.cs)}catch(e){}
  document.querySelector('.ws').scrollIntoView({behavior:'smooth',block:'start'});
 }
+/* ---- bar signals, from SD's TradingView script (VCP-Tightness) ----
+   Momentum burst: change vs previous close > 4%, volume > 1.4 x SMA(volume, 21) (current bar included),
+                   (close - open) / (high - open) > 70%.
+   NR7 + inside bar: true range <= each of the previous 6, high <= prior high and low >= prior low. */
+function barSignals(rows){
+ const n=rows.length,mb=new Array(n).fill(false),nr=new Array(n).fill(false),tr=[];let vs=0;
+ for(let k=0;k<n;k++){const [,o,h,l,c,v]=rows[k],pc=k?rows[k-1][4]:null;
+  tr.push(pc==null?h-l:Math.max(h-l,Math.abs(h-pc),Math.abs(l-pc)));
+  vs+=v;if(k>=21)vs-=rows[k-21][5];
+  if(k>=20&&pc){const avg=vs/21,chg=(c/pc-1)*100,cc=h>o?(c-o)/(h-o)*100:-1;mb[k]=v>avg*1.4&&chg>4&&cc>70}
+  if(k>=6){let narrow=true;for(let j=1;j<=6;j++)if(tr[k]>tr[k-j]){narrow=false;break}
+   nr[k]=narrow&&h<=rows[k-1][2]&&l>=rows[k-1][3]}}
+ return {mb,nr};
+}
+/* ---- 10/20 ribbon: the chart library cannot fill between two lines, so a pane primitive draws it ---- */
+class Ribbon{
+ constructor(){const self=this;this._view={zOrder:()=>'bottom',renderer:()=>({draw:tg=>self._draw(tg)})}}
+ attached(){} detached(){} updateAllViews(){} paneViews(){return [this._view]}
+ _draw(target){
+  if(!IND.rib||!chart||!S.E10||!S.cs)return;
+  target.useMediaCoordinateSpace(({context:ctx})=>{
+   const ts=chart.timeScale(),vr=ts.getVisibleLogicalRange();if(!vr)return;
+   const last=S.lastI??C[cur].length-1,a=Math.max(0,Math.floor(vr.from)-1),b=Math.min(last,Math.ceil(vr.to)+1);
+   let run=[],sg=null;
+   const flush=()=>{if(run.length>1){ctx.fillStyle=sg?S.ribUp:S.ribDn;ctx.beginPath();run.forEach((q,j)=>j?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y));for(let j=run.length-1;j>=0;j--)ctx.lineTo(run[j].x,run[j].z);ctx.closePath();ctx.fill()}};
+   for(let k=a;k<=b;k++){
+    const e=S.E10[k],f=S.E20[k],x=ts.logicalToCoordinate(k),y=e==null?null:S.cs.priceToCoordinate(e),z=f==null?null:S.cs.priceToCoordinate(f);
+    if(x==null||y==null||z==null){flush();run=[];sg=null;continue}
+    const pt={x,y,z},s=e>=f;
+    if(sg!==null&&s!==sg){run.push(pt);flush();run=[pt]}else run.push(pt);
+    sg=s}
+   flush();
+  });
+ }
+}
 /* ---- moving-average toggles (EMA 10 / EMA 20 / 50 DMA / 200 DMA) ---- */
 function ema(v,n){const k=2/(n+1),o=[];let e=null,c=0,s=0;
  for(const x of v){if(x==null){o.push(e);continue}
   if(e==null){s+=x;c++;if(c===n)e=s/n;o.push(e)}else{e=x*k+e*(1-k);o.push(e)}}
  return o}
-const IND={e10:true,e20:true,m50:true,m200:true,ie10:true,ie20:true,rg:true};
+const IND={e10:true,e20:true,m50:true,m200:true,ie10:true,ie20:true,rg:true,rib:true,mb:true,nr:true};
 try{Object.assign(IND,JSON.parse(localStorage.getItem('winners-ind')||'{}'))}catch(e){}
 function applyInd(){
  if(S.e10){S.e10.applyOptions({visible:IND.e10});S.e20.applyOptions({visible:IND.e20});S.m50.applyOptions({visible:IND.m50});S.m200.applyOptions({visible:IND.m200});S.ie10.applyOptions({visible:IND.ie10});S.ie20.applyOptions({visible:IND.ie20});S.rg.applyOptions({visible:IND.rg});if(S.ixMk&&!IND.rg)S.ixMk.setMarkers([])}
@@ -760,7 +803,7 @@ function applyInd(){
 document.querySelectorAll('[data-ind]').forEach(b=>b.onclick=()=>{
  IND[b.dataset.ind]=!IND[b.dataset.ind];
  try{localStorage.setItem('winners-ind',JSON.stringify(IND))}catch(e){}
- applyInd();if(S.ixMk&&IND.rg)render(rp.on?rp.i:C[cur].length-1);legend(rp.on?rp.i:C[cur].length-1);
+ applyInd();if(S.cs)render(rp.on?rp.i:C[cur].length-1);legend(rp.on?rp.i:C[cur].length-1);
 });
 /* ---- measure tool: click two points on the price pane, read the % move ---- */
 const MS={on:false,a:null,b:null,live:null};
