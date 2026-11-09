@@ -666,9 +666,10 @@ function draw(){
  S.SIG=barSignals(rows);
  S.ribUp=(c=>/^#[0-9a-f]{6}$/i.test(c)?c+'2e':c)(css('--up'));S.ribDn=(c=>/^#[0-9a-f]{6}$/i.test(c)?c+'2e':c)(css('--down'));
  S.cs.attachPrimitive(new Ribbon());
- S.cs.attachPrimitive(new Badges());S.sheet=bg;
+ S.sheet=bg;
  S.vcUp=css('--up');S.vcDn=css('--down');
  if(VC)S.cs.attachPrimitive(new VolCandles());
+ S.cs.attachPrimitive(new Badges());   // after the candles so labels sit on top; normal layer so Print captures them
  try{S.rg.priceScale().applyOptions({scaleMargins:{top:HX?0.955:0.93,bottom:0},visible:false});S.ix.priceScale().applyOptions({scaleMargins:{top:0.06,bottom:0.12}});
   if(HX)S.cs.priceScale().applyOptions({scaleMargins:{top:0.08,bottom:0.1}})}catch(e){}
  const tint=c=>/^#[0-9a-f]{6}$/i.test(c)?c+'99':c;
@@ -807,7 +808,7 @@ function barSignals(rows){
 /* ---- 10/20 ribbon: the chart library cannot fill between two lines, so a pane primitive draws it ---- */
 /* ---- chart labels (Low, BO, 52wH, Top, quarterly results): outlined, lightly tinted badges ---- */
 class Badges{
- constructor(){const self=this;this._view={zOrder:()=>'top',renderer:()=>({draw:tg=>self._draw(tg)})}}
+ constructor(){const self=this;this._view={zOrder:()=>'normal',renderer:()=>({draw:tg=>self._draw(tg)})}}
  attached(){} detached(){} updateAllViews(){} paneViews(){return [this._view]}
  _draw(target){
   if(!chart||!S.cs||!S.markers)return;
