@@ -75,7 +75,7 @@ On the report, each stock's Setup score panel has **Mark as not a winner**, with
 - **Excess**: the stock's daily % change minus the benchmark's daily % change.
 - **Momentum burst** (blue candle, from the VCP-Tightness TradingView script): the close is more than 4% above the previous close, volume is above 1.4× its 21-day average, and the close is in the top 30% of the open-to-high range.
 - **NR7 + inside bar** (fuchsia candle): the true range is the narrowest of the last 7 bars, and the bar sits inside the previous bar.
-- **Volume candles** (toolbar button): each candle's width is its volume ÷ its 50-day average volume (clamped to 0.3×–2.2× a normal candle). The volume and index panes are hidden, so price gets the full chart height.
+- **Volume candles** (toolbar button): each candle's width shows its volume against the 50-day average, inside its own time slot so candles never overlap. A very quiet day is a thin line; 2.5× the average or more fills the slot. The volume and index panes are hidden, and the Smallcap 250 regime stays as a strip at the foot of the chart.
 - **10/20 ribbon**: shading between EMA 10 and EMA 20, green when EMA 10 is above, red when below.
 - **Market regime** (on the Smallcap 250): uptrend when the close is above both EMA 10 and EMA 20, downtrend when below both, mixed otherwise. A new regime needs 2 consecutive closes; the change is marked on the confirming close (▲ uptrend, ● mixed, ▼ downtrend), and a thin ribbon under the index shows the current regime. It is computed once from the full index history, so every stock shows the same market signals.
 - **Result date**: an estimate, quarter end + 45 days (+60 for March), the SEBI deadline.

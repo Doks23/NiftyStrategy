@@ -796,7 +796,7 @@ class Ribbon{
   });
  }
 }
-/* ---- volume candles: candle width = volume / 50-day average volume (clamped 0.3x-2.2x) ----
+/* ---- volume candles: width inside each candle's own slot = 15% + 85% x min(1, volume / (2.5 x 50-day average)) ----
    The library cannot vary candle width, so its own candles go transparent (they still drive the
    price scale, crosshair and markers) and this primitive draws the real ones. */
 class VolCandles{
@@ -808,13 +808,11 @@ class VolCandles{
   const last=S.lastI??rows.length-1,a=Math.max(0,Math.floor(vr.from)-3),b=Math.min(last,Math.ceil(vr.to)+3);
   const p0=ts.logicalToCoordinate(a),p1=ts.logicalToCoordinate(a+1),sp=p0!=null&&p1!=null?Math.abs(p1-p0):6;
   target.useBitmapCoordinateSpace(({context:ctx,horizontalPixelRatio:hr,verticalPixelRatio:vp})=>{
-   const order=[];for(let k=a;k<=b;k++)order.push(k);
-   order.sort((p,q)=>(rows[p][5]/(rows[p][8]||rows[p][5]))-(rows[q][5]/(rows[q][8]||rows[q][5])));   // fat candles on top
-   for(const k of order){
+   for(let k=a;k<=b;k++){
     const r=rows[k],o=r[1],h=r[2],l=r[3],c=r[4],v=r[5],v50=r[8],x=ts.logicalToCoordinate(k);if(x==null)continue;
     const yo=S.cs.priceToCoordinate(o),yh=S.cs.priceToCoordinate(h),yl=S.cs.priceToCoordinate(l),yc=S.cs.priceToCoordinate(c);
     if(yo==null||yh==null||yl==null||yc==null)continue;
-    const rel=v50?v/v50:1,w=Math.max(1,sp*0.8*Math.min(2.2,Math.max(0.3,rel)));
+    const rel=v50?v/v50:1,w=Math.max(1,sp*0.92*(0.15+0.85*Math.min(1,rel/2.5)));   // stays inside its own slot: no overlap
     ctx.fillStyle=IND.mb&&S.SIG.mb[k]?'#2196F3':IND.nr&&S.SIG.nr[k]?'#E040FB':c>=o?S.vcUp:S.vcDn;
     const ww=Math.max(1,Math.floor(hr));ctx.fillRect(Math.round(x*hr)-Math.floor(ww/2),Math.round(yh*vp),ww,Math.max(1,Math.round((yl-yh)*vp)));
     const top=Math.min(yo,yc),bw=Math.max(1,Math.round(w*hr));
@@ -1061,7 +1059,7 @@ function composePage({shot,s,box,col}){
  x.fillStyle=col.muted;x.font=`500 ${Math.round(11*s)}px "JetBrains Mono", monospace`;
  const on=[IND.e10&&'EMA 10',IND.e20&&'EMA 20',IND.m50&&'50 DMA',IND.m200&&'200 DMA'].filter(Boolean).join(', ')||'no averages';
  const fit=(txt,y)=>{let t=txt;while(x.measureText(t).width>cv.width-pad*2&&t.length>10)t=t.slice(0,t.lastIndexOf(' · '))||t.slice(0,-2);x.fillText(t,pad,y)};
- fit(IND.vc?`Volume candles: candle width = volume vs its 50-day average · lines: ${on}${IND.rg?' · strip at the foot = Smallcap 250 regime (▲ up ● mixed ▼ down)':''}`:`Panes: price (${on}) · volume · Smallcap 250${IND.rg?' + regime (▲ up ● mixed ▼ down)':''} · Q = est. result date (green/red = profit YoY up/down)`,head+shot.height+Math.round(28*s));
+ fit(IND.vc?`Volume candles: width = volume vs 50-day average (full width at 2.5x or more) · lines: ${on}${IND.rg?' · strip at the foot = Smallcap 250 regime (▲ up ● mixed ▼ down)':''}`:`Panes: price (${on}) · volume · Smallcap 250${IND.rg?' + regime (▲ up ● mixed ▼ down)':''} · Q = est. result date (green/red = profit YoY up/down)`,head+shot.height+Math.round(28*s));
  fit(`Data: Dhan daily prices, Screener.in quarterly results · 2025 Winners Playbook · printed ${fmtD(new Date().toISOString().slice(0,10))}`,head+shot.height+Math.round(45*s));
  return cv;
 }
