@@ -188,7 +188,11 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
 .ic{width:30px;height:30px;border-radius:6px!important;font-size:18px!important;line-height:1}
 .ic:hover{background:var(--chip)!important}
 .ws-name{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;min-width:0}
-.ws-name .tk{font-family:var(--f-display);font-weight:800;font-size:22px;letter-spacing:-.01em}
+.ws-name .tk{font-family:var(--f-display);font-weight:800;font-size:22px;letter-spacing:-.01em;color:var(--ink);text-decoration:none;border-radius:4px}
+.ws-name .tk::after{content:'↗';font-size:13px;font-weight:600;color:var(--muted);margin-left:4px;vertical-align:4px}
+.ws-name .tk:hover{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}
+.ws-name .tk:hover::after{color:var(--accent)}
+.ws-name .tk:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .ws-name .ret{font-family:var(--f-mono);font-weight:600;color:var(--good);font-size:14px}
 .ws-name .ind{font-family:var(--f-mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .ws-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -286,7 +290,7 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
     <div class="ws-bar">
       <div class="ws-id">
         <button class="ic" id="prev" aria-label="Previous stock" title="Previous stock ([)">‹</button>
-        <div class="ws-name"><span class="tk" id="c-name"></span><span class="ret" id="c-ret"></span><span class="ind" id="c-ind"></span></div>
+        <div class="ws-name"><a class="tk" id="c-name" href="https://www.tradingview.com/" target="_blank" rel="noopener" title="Open on TradingView"></a><span class="ret" id="c-ret"></span><span class="ind" id="c-ind"></span></div>
         <button class="ic" id="next" aria-label="Next stock" title="Next stock (])">›</button>
       </div>
       <div class="ws-tools">
@@ -928,7 +932,7 @@ function select(s){
  cur=s;const r=A.find(x=>x.stock===s);FB=null;
  MS.a=MS.b=MS.live=null;msHint();
  document.querySelectorAll('.pitem').forEach(b=>b.setAttribute('aria-current',b.dataset.s===s));
- $('#c-name').textContent=r.stock;$('#c-ret').textContent=fmtPct(r.calc_return)+' in 2025 · Tier '+r.tier;
+ {const a=$('#c-name');a.textContent=r.stock;a.href='https://www.tradingview.com/chart/?symbol='+encodeURIComponent('NSE:'+r.stock.replace(/[&-]/g,'_'));a.title=`Open ${r.stock} on TradingView (new tab)`}$('#c-ret').textContent=fmtPct(r.calc_return)+' in 2025 · Tier '+r.tier;
  $('#c-ind').textContent=r.industry;
  $('#timeline').innerHTML=[['Low',r.low_date,'−'+Math.round(r.drawdown_into_low)+'% from 52w high'],['Breakout',r.bo_date,fmtPct(r.gained_before_bo)+' off low · '+r.days_low_to_bo+'d'],['52w-high reclaim',r.nh_date,r.nh_date?fmtPct(r.nh_gained_from_low)+' off low':'not reached'],['Top',r.high_date,r.nh_to_high!=null?fmtPct(r.nh_to_high)+' after reclaim':fmtPct(r.bo_to_high)+' after BO']]
   .map(([k,d,x])=>{const g=d?regAt(d):null;return `<div class="tl"><span class="k">${k}</span><span class="d">${fmtD(d)}</span><span class="x">${x}</span>${g&&g.s?`<span class="x" style="color:var(${REGV[g.s]})">Market: ${REGN[g.s]}</span>`:''}</div>`}).join('');
