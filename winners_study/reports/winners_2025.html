@@ -142,6 +142,14 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
 .caveats ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
 [hidden]{display:none!important}
 .exbox{border-top:1px solid var(--rule);padding-top:10px}
+.ws-id{position:relative}
+.rm-btn{font-family:var(--f-mono);font-size:11.5px;padding:4px 9px;margin-left:4px;border-radius:999px!important;border:1px solid var(--rule)!important;color:var(--muted)!important;white-space:nowrap}
+.rm-btn:hover{color:var(--down)!important;border-color:var(--down)!important}
+.rm-btn.on{color:var(--down)!important;border-color:color-mix(in srgb,var(--down) 45%,transparent)!important;background:color-mix(in srgb,var(--down) 8%,transparent)!important}
+.rm-pop{position:absolute;top:calc(100% + 8px);left:0;z-index:20;width:min(320px,calc(100vw - 48px));display:flex;flex-direction:column;gap:6px;padding:12px;font-size:13px;background:var(--sheet);border:1px solid var(--rule);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.rm-pop select,.rm-pop input{font:inherit;padding:6px 8px;border:1px solid var(--rule);border-radius:6px;background:var(--sheet);color:var(--ink);min-width:0}
+.wl-foot{font-family:var(--f-mono);font-size:11px;color:var(--muted)!important;padding:8px;border-top:1px solid var(--rule)!important;text-align:left;cursor:pointer}
+.wl-foot:hover{color:var(--ink)!important}
 .exbtn{font-family:var(--f-mono);font-size:12px;padding:6px 10px;border-radius:6px;border:1px solid var(--rule);background:var(--sheet);color:var(--ink);cursor:pointer}
 .exbtn:hover{background:var(--chip)}.exbtn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .exbtn.primary{background:var(--down);border-color:var(--down);color:#fff}
@@ -294,6 +302,12 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
         <button class="ic" id="prev" aria-label="Previous stock" title="Previous stock ([)">‹</button>
         <div class="ws-name"><a class="tk" id="c-name" href="https://www.tradingview.com/" target="_blank" rel="noopener" title="Open on TradingView"></a><span class="ret" id="c-ret"></span><span class="ind" id="c-ind"></span></div>
         <button class="ic" id="next" aria-label="Next stock" title="Next stock (])">›</button>
+        <button class="rm-btn" id="rm-btn" type="button" title="Remove this stock from the study (you can undo)">✕ Remove</button>
+        <form class="rm-pop" id="rm-pop" hidden>
+          <label for="rm-reason">Why remove it?</label><select id="rm-reason"></select>
+          <label for="rm-note">Note (optional)</label><input id="rm-note" maxlength="300" placeholder="e.g. very illiquid, can't be replicated">
+          <div class="exrow"><button class="exbtn primary" type="submit">Remove</button><button class="exbtn" type="button" id="rm-cancel">Cancel</button></div>
+        </form>
       </div>
       <div class="ws-tools">
         <div class="indgrp"><span class="indlab">Stock</span>
@@ -341,6 +355,7 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
           <button data-sort="ret" aria-pressed="true">Return</button><button data-sort="score" aria-pressed="false">Score</button><button data-sort="low" aria-pressed="false">Low</button>
         </div>
         <div class="plist" id="plist" role="list"></div>
+        <button class="wl-foot" id="wl-rm" type="button" hidden></button>
       </aside>
       <div class="ws-chart">
         <div class="legend-ohlc" id="legend"></div>
@@ -372,8 +387,8 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
 </section>
 
 <section id="ex-sec">
-  <div class="sec-head"><div class="eyebrow">Review</div><h2>Marked as not winners</h2>
-    <p class="muted">Use <b>Mark as not a winner</b> in a stock's Setup score panel for moves that are not real setups: a takeover, a price-only or operator-style move, or bad data. Marked stocks drop out of every summary on this page right away. To remove them from the study for good, ask Claude to “remove the marked stocks”.</p>
+  <div class="sec-head"><div class="eyebrow">Review</div><h2>Removed from the study</h2>
+    <p class="muted">Use <b>✕ Remove</b> next to a stock's name for names that are not worth studying: too illiquid to replicate, a takeover, a price-only or operator-style move, or bad data. Removed stocks leave the stock list and every summary right away (“Show removed” at the bottom of the list brings them back for undo). To drop them from the repo data for good, ask Claude to “remove the marked stocks”.</p>
     <p class="note" id="ex-status"></p></div>
   <div class="panel">
     <div class="tbl-wrap"><table id="ex-table"></table></div>
@@ -450,7 +465,8 @@ const REG=(()=>{const c=IDX.map(x=>x[4]),e10=ema(c,10),e20=ema(c,20);
   st.push(s);since.push(sn)}
  return {e10,e20,st,since,chg};})();
 function regAt(d){let k=IDXI.get(d);if(k==null){k=-1;for(let j=0;j<IDX.length&&IDX[j][0]<=d;j++)k=j}return k<0?null:{s:REG.st[k],since:REG.since[k]}}
-const EX_REASONS=['Takeover or corporate event','Price-only move (no earnings support)','Illiquid or operator-style','Bad data or wrong symbol','Other'];
+const EX_REASONS=['Illiquid / hard to replicate','Takeover or corporate event','Price-only move (no earnings support)','Operator-style move','Bad data or wrong symbol','Other'];
+let SHOWRM=false;   // watchlist: show removed stocks (struck through) for undo
 const exKey=s=>s.replace(/[^A-Za-z0-9_\-~:@]/g,c=>'+'+c.charCodeAt(0).toString(16));   // GVT&D -> GVT+26D
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let exDb=null,exMode='local';
@@ -507,9 +523,11 @@ const READ={"CUPID":"Biggest winner, but the textbook signals were weak at entry
 /* picker */
 let sortKey='ret',cur=null;
 function list(){
- const rows=[...GAall()].sort((a,b)=>(!!EX[a.stock]-!!EX[b.stock])||(sortKey==='ret'?b.calc_return-a.calc_return:sortKey==='score'?(b.score-a.score||b.calc_return-a.calc_return):a.low_date.localeCompare(b.low_date)));
- $('#plist').innerHTML=rows.map(r=>`<button class="pitem${EX[r.stock]?' ex':''}" role="listitem" data-s="${r.stock}" aria-current="${r.stock===cur}" title="${EX[r.stock]?'Marked as not a winner':''}"><span>${r.stock}${GROUP==='all'&&r.tier===2?'<small class="t2">T2</small>':''}${EX[r.stock]?'<small class="t2">✕</small>':''}</span><span class="r">${sortKey==='score'?r.score+'/9':sortKey==='low'?fmtD(r.low_date):fmtPct(r.calc_return)}</span></button>`).join('');
+ const rows=[...GAall()].filter(r=>SHOWRM||!EX[r.stock]||r.stock===cur).sort((a,b)=>(!!EX[a.stock]-!!EX[b.stock])||(sortKey==='ret'?b.calc_return-a.calc_return:sortKey==='score'?(b.score-a.score||b.calc_return-a.calc_return):a.low_date.localeCompare(b.low_date)));
+ $('#plist').innerHTML=rows.map(r=>`<button class="pitem${EX[r.stock]?' ex':''}" role="listitem" data-s="${r.stock}" aria-current="${r.stock===cur}" title="${EX[r.stock]?'Removed from the study':''}"><span>${r.stock}${GROUP==='all'&&r.tier===2?'<small class="t2">T2</small>':''}${EX[r.stock]?'<small class="t2">✕</small>':''}</span><span class="r">${sortKey==='score'?r.score+'/9':sortKey==='low'?fmtD(r.low_date):fmtPct(r.calc_return)}</span></button>`).join('');
  document.querySelectorAll('.pitem').forEach(b=>b.onclick=()=>select(b.dataset.s));
+ const nRm=GAall().filter(r=>EX[r.stock]).length,f=$('#wl-rm');
+ f.hidden=!nRm;f.textContent=SHOWRM?`Hide removed (${nRm})`:`Show removed (${nRm})`;f.onclick=()=>{SHOWRM=!SHOWRM;list()};
 }
 document.querySelectorAll('[data-sort]').forEach(b=>b.onclick=()=>{sortKey=b.dataset.sort;document.querySelectorAll('[data-sort]').forEach(x=>x.setAttribute('aria-pressed',x===b));list()});
 
@@ -931,7 +949,8 @@ function autoRead(r){
 }
 function select(s){
  const wasRp=rp.on;if(rp.on){pause();rp.on=false}
- cur=s;const r=A.find(x=>x.stock===s);FB=null;
+ const prev=cur;cur=s;const r=A.find(x=>x.stock===s);FB=null;
+ if(prev&&prev!==s&&EX[prev]&&!SHOWRM)list();   // a just-removed stock leaves the list once you move on
  MS.a=MS.b=MS.live=null;msHint();
  document.querySelectorAll('.pitem').forEach(b=>b.setAttribute('aria-current',b.dataset.s===s));
  {const a=$('#c-name');a.textContent=r.stock;a.href='https://www.tradingview.com/chart/?symbol='+encodeURIComponent('NSE:'+r.stock.replace(/[&-]/g,'_'));a.title=`Open ${r.stock} on TradingView (new tab)`}$('#c-ret').textContent=fmtPct(r.calc_return)+' in 2025 · Tier '+r.tier;
@@ -944,7 +963,7 @@ function select(s){
  const vals={washout:'−'+Math.round(r.drawdown_into_low)+'%',rs_thrust:'+'+Math.round(r.rs_gain_low_to_bo)+' pts',higher_low:r.held_higher_low==null?'n/a':'',bo_volume:r.bo_vol_x+'×',accumulation:r.updown_vol+'',nh_trend:'',rs_new_high:'',earnings:'',liquidity:'₹'+liq+' cr'};
  $('#r-checks').innerHTML=CHK.map(([k,l])=>{const v=r.checks[k];const m=v===true?'<span class="m y">✓</span>':v===false?'<span class="m n">✗</span>':'<span class="m na">–</span>';return `<li>${m}<span>${l}</span><span class="val">${vals[k]||''}</span></li>`}).join('');
  $('#r-read').textContent=READ[s]||autoRead(r);
- renderMark();
+ renderMark();renderRm();
  $('#r-rs').innerHTML=rsStory(s).map(([k,v])=>`<li><span class="k">${k}</span><span>${v}</span></li>`).join('');
  const rows_=C[s],ND=notable(s);
  $('#r-days').innerHTML='<tr><th>Date</th><th>Stock</th><th>SC250</th><th>Excess</th><th>Vol</th><th>Read</th></tr>'+ND.map(d=>{const w=why(rows_,d.i,r);return `<tr class="dayrow" tabindex="0" data-i="${d.i}" title="${w.text.replace(/"/g,'')}"><td>${fmtD(rows_[d.i][0])}</td><td class="${d.s>=0?'pos':'neg'}">${fmtPct(d.s)}</td><td class="${d.m>=0?'pos':'neg'}">${fmtPct(d.m)}</td><td class="${d.ex>=0?'pos':'neg'}">${fmtPct(d.ex)}</td><td>${d.vx?d.vx.toFixed(1)+'×':'—'}</td><td><span class="wtag ${tagc(w.tag)}">${w.tag}</span></td></tr>`}).join('');
@@ -962,7 +981,16 @@ renderSummary();   // re-run now that the RS helpers exist
 function exLocalLoad(){try{return JSON.parse(localStorage.getItem('winners-excluded')||'{}')}catch(e){return {}}}
 function exLocalSave(){try{localStorage.setItem('winners-excluded',JSON.stringify(EX))}catch(e){}}
 function exReplace(obj){for(const k in EX)delete EX[k];Object.assign(EX,obj);exRefresh()}
-function exRefresh(){renderSummary();list();renderMark();renderExList()}
+function exRefresh(){renderSummary();list();renderMark();renderExList();renderRm()}
+function renderRm(){
+ const b=$('#rm-btn'),pop=$('#rm-pop');if(!b||!cur)return;pop.hidden=true;
+ if(EX[cur]){b.textContent='Removed · Undo';b.classList.add('on');b.title=`${EX[cur].reason}${EX[cur].note?' · '+EX[cur].note:''}. Click to put it back.`;b.onclick=()=>exUnmark(cur)}
+ else{b.textContent='✕ Remove';b.classList.remove('on');b.title='Remove this stock from the study (you can undo)';
+  b.onclick=()=>{$('#rm-reason').innerHTML=EX_REASONS.map(x=>`<option>${x}</option>`).join('');$('#rm-note').value='';pop.hidden=false;$('#rm-reason').focus()}}
+}
+$('#rm-cancel').onclick=()=>{$('#rm-pop').hidden=true};
+$('#rm-pop').onsubmit=e=>{e.preventDefault();$('#rm-pop').hidden=true;exMark(cur,$('#rm-reason').value,$('#rm-note').value.trim())};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#rm-pop').hidden)$('#rm-pop').hidden=true});
 async function exMark(s,reason,note){
  const v={stock:s,reason,note:note.slice(0,300),at:new Date().toISOString()};
  EX[s]=v;exRefresh();
@@ -977,8 +1005,8 @@ async function exUnmark(s){
 function exStatus(msg){$('#ex-status').textContent=msg||(exMode==='db'?'Marks are saved with this page: they follow you across devices and Claude can read them.':'Marks are saved in this browser only. Open the published page to share them with Claude.')}
 function renderMark(){
  const box=$('#exbox');if(!box||!cur)return;const m=EX[cur];
- if(m){box.innerHTML=`<div class="exon"><b>Marked as not a winner</b><span>${esc(m.reason)}${m.note?' · '+esc(m.note):''}</span><button class="exbtn" id="ex-undo" type="button">Undo</button></div>`;$('#ex-undo').onclick=()=>exUnmark(cur);return}
- box.innerHTML=`<button class="exbtn" id="ex-open" type="button">Mark as not a winner</button>
+ if(m){box.innerHTML=`<div class="exon"><b>Removed from the study</b><span>${esc(m.reason)}${m.note?' · '+esc(m.note):''}</span><button class="exbtn" id="ex-undo" type="button">Undo</button></div>`;$('#ex-undo').onclick=()=>exUnmark(cur);return}
+ box.innerHTML=`<button class="exbtn" id="ex-open" type="button">✕ Remove from study</button>
   <form class="exform" id="ex-form" hidden>
    <label for="ex-reason">Reason</label><select id="ex-reason">${EX_REASONS.map(x=>`<option>${x}</option>`).join('')}</select>
    <label for="ex-note">Note (optional)</label><input id="ex-note" maxlength="300" placeholder="e.g. Mahindra takeover, not a chart setup">
@@ -992,7 +1020,7 @@ function renderExList(){
  const L=Object.values(EX).sort((a,b)=>String(b.at).localeCompare(String(a.at)));
  $('#ex-table').innerHTML=L.length?'<tr><th>Stock</th><th>Tier</th><th>2025 move</th><th>Reason</th><th>Note</th><th>Marked</th><th></th></tr>'+L.map(m=>{const r=A.find(x=>x.stock===m.stock)||{};
    return `<tr><td><button class="linkbtn" data-open="${esc(m.stock)}">${esc(m.stock)}</button></td><td>${r.tier||'—'}</td><td>${fmtPct(r.calc_return)}</td><td class="tdwrap">${esc(m.reason)}</td><td class="tdwrap">${esc(m.note)||'—'}</td><td class="muted">${fmtD(String(m.at).slice(0,10))}</td><td><button class="exbtn" data-undo="${esc(m.stock)}">Undo</button></td></tr>`}).join('')
-  :'<tr><td class="muted tdwrap">No stocks marked yet. Open a stock above and use “Mark as not a winner” in its Setup score panel.</td></tr>';
+  :'<tr><td class="muted tdwrap">Nothing removed yet. Use “✕ Remove” next to a stock name at the top of the chart.</td></tr>';
  document.querySelectorAll('[data-undo]').forEach(b=>b.onclick=()=>exUnmark(b.dataset.undo));
  document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{select(b.dataset.open);document.getElementById('bench-sec').scrollIntoView({behavior:'smooth'})});
  $('#ex-copy').hidden=!L.length;
