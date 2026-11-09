@@ -48,9 +48,9 @@ Each stock's tier comes from its actual low-to-high move in the year, measured o
 
 `inputs/winnerdb_2025_screening.csv` gives the keep or remove decision and the reason for every row of the raw file. 35 were removed: 10 duplicates of names already in the study (SMLISUZU is SMLMAH), 4 that could not be verified (a rights entitlement, a missing symbol, and two whose file details don't match the NSE symbol), and 21 that moved less than 100% in 2025. That raw file's "gain from 52-week low" is measured up to the export date, not over 2025, and some figures include unadjusted splits.
 
-## Marking stocks as "not a winner"
+## Removing stocks from the study
 
-On the report, each stock's Setup score panel has **Mark as not a winner**, with a reason and an optional note. A marked stock drops out of every summary right away, shows struck through in the stock list, and is listed under "Marked as not winners", where Undo restores it.
+On the report, **✕ Remove** next to the stock name (and in the Setup score panel) takes a stock out of the study, with a reason (default: *Illiquid / hard to replicate*) and an optional note. A removed stock leaves the stock list and every summary right away. "Show removed" at the bottom of the list brings removed stocks back, struck through, so you can undo; they are also listed under "Removed from the study".
 
 - On the published claude.ai page, marks are saved in the page's shared data, so Claude can read them. In the standalone file from `reports/`, they are saved in the browser only; "Copy list" exports them.
 - To remove marked stocks from the study for good, add them to `inputs/exclusions_<year>.csv` (`Stock Name,Reason,Note,Marked`), or ask Claude to "remove the marked stocks". The pipeline drops those names from every step. The report lists them as "already removed for good", so the decision stays visible.
@@ -75,6 +75,7 @@ On the report, each stock's Setup score panel has **Mark as not a winner**, with
 - **Excess**: the stock's daily % change minus the benchmark's daily % change.
 - **Momentum burst** (blue candle, from the VCP-Tightness TradingView script): the close is more than 4% above the previous close, volume is above 1.4× its 21-day average, and the close is in the top 30% of the open-to-high range.
 - **NR7 + inside bar** (fuchsia candle): the true range is the narrowest of the last 7 bars, and the bar sits inside the previous bar.
+- **Volume candles** (toolbar button): each candle's width shows its volume against the 50-day average, inside its own time slot so candles never overlap. A very quiet day is a thin line; 2.5× the average or more fills the slot. The volume and index panes are hidden, and the Smallcap 250 regime stays as a strip at the foot of the chart.
 - **10/20 ribbon**: shading between EMA 10 and EMA 20, green when EMA 10 is above, red when below.
 - **Market regime** (on the Smallcap 250): uptrend when the close is above both EMA 10 and EMA 20, downtrend when below both, mixed otherwise. A new regime needs 2 consecutive closes; the change is marked on the confirming close (▲ uptrend, ● mixed, ▼ downtrend), and a thin ribbon under the index shows the current regime. It is computed once from the full index history, so every stock shows the same market signals.
 - **Result date**: an estimate, quarter end + 45 days (+60 for March), the SEBI deadline.

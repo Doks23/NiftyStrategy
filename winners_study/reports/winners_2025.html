@@ -142,6 +142,14 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
 .caveats ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
 [hidden]{display:none!important}
 .exbox{border-top:1px solid var(--rule);padding-top:10px}
+.ws-id{position:relative}
+.rm-btn{font-family:var(--f-mono);font-size:11.5px;padding:4px 9px;margin-left:4px;border-radius:999px!important;border:1px solid var(--rule)!important;color:var(--muted)!important;white-space:nowrap}
+.rm-btn:hover{color:var(--down)!important;border-color:var(--down)!important}
+.rm-btn.on{color:var(--down)!important;border-color:color-mix(in srgb,var(--down) 45%,transparent)!important;background:color-mix(in srgb,var(--down) 8%,transparent)!important}
+.rm-pop{position:absolute;top:calc(100% + 8px);left:0;z-index:20;width:min(320px,calc(100vw - 48px));display:flex;flex-direction:column;gap:6px;padding:12px;font-size:13px;background:var(--sheet);border:1px solid var(--rule);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.rm-pop select,.rm-pop input{font:inherit;padding:6px 8px;border:1px solid var(--rule);border-radius:6px;background:var(--sheet);color:var(--ink);min-width:0}
+.wl-foot{font-family:var(--f-mono);font-size:11px;color:var(--muted)!important;padding:8px;border-top:1px solid var(--rule)!important;text-align:left;cursor:pointer}
+.wl-foot:hover{color:var(--ink)!important}
 .exbtn{font-family:var(--f-mono);font-size:12px;padding:6px 10px;border-radius:6px;border:1px solid var(--rule);background:var(--sheet);color:var(--ink);cursor:pointer}
 .exbtn:hover{background:var(--chip)}.exbtn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .exbtn.primary{background:var(--down);border-color:var(--down);color:#fff}
@@ -175,9 +183,9 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
 .ms-box{position:absolute;z-index:2;pointer-events:none;border:1px solid}
 .ms-box.up{background:color-mix(in srgb,var(--up) 14%,transparent);border-color:var(--up)}
 .ms-box.dn{background:color-mix(in srgb,var(--down) 14%,transparent);border-color:var(--down)}
-.ms-lab{position:absolute;z-index:4;pointer-events:none;display:flex;gap:10px;align-items:baseline;white-space:nowrap;font-family:var(--f-mono);font-size:12px;padding:5px 9px;border-radius:5px;color:#fff;font-variant-numeric:tabular-nums;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.ms-lab{position:absolute;z-index:4;pointer-events:none;display:flex;gap:10px;align-items:baseline;white-space:nowrap;font-family:var(--f-mono);font-size:12px;padding:4px 9px;border-radius:5px;font-variant-numeric:tabular-nums;border:1px solid;background:var(--sheet)}
 .ms-lab b{font-size:13px}
-.ms-lab.up{background:var(--up)}.ms-lab.dn{background:var(--down)}
+.ms-lab.up{color:var(--up);border-color:var(--up);background:color-mix(in srgb,var(--up) 14%,var(--sheet))}.ms-lab.dn{color:var(--down);border-color:var(--down);background:color-mix(in srgb,var(--down) 14%,var(--sheet))}
 .ms-hint{position:absolute;top:30px;left:10px;z-index:4;pointer-events:none;font-family:var(--f-mono);font-size:11.5px;background:var(--ink);color:var(--paper);padding:4px 8px;border-radius:4px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 /* ---- workstation ---- */
@@ -190,7 +198,11 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
 .ic{width:30px;height:30px;border-radius:6px!important;font-size:18px!important;line-height:1}
 .ic:hover{background:var(--chip)!important}
 .ws-name{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;min-width:0}
-.ws-name .tk{font-family:var(--f-display);font-weight:800;font-size:22px;letter-spacing:-.01em}
+.ws-name .tk{font-family:var(--f-display);font-weight:800;font-size:22px;letter-spacing:-.01em;color:var(--ink);text-decoration:none;border-radius:4px}
+.ws-name .tk::after{content:'↗';font-size:13px;font-weight:600;color:var(--muted);margin-left:4px;vertical-align:4px}
+.ws-name .tk:hover{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}
+.ws-name .tk:hover::after{color:var(--accent)}
+.ws-name .tk:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .ws-name .ret{font-family:var(--f-mono);font-weight:600;color:var(--good);font-size:14px}
 .ws-name .ind{font-family:var(--f-mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .ws-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -288,8 +300,14 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
     <div class="ws-bar">
       <div class="ws-id">
         <button class="ic" id="prev" aria-label="Previous stock" title="Previous stock ([)">‹</button>
-        <div class="ws-name"><span class="tk" id="c-name"></span><span class="ret" id="c-ret"></span><span class="ind" id="c-ind"></span></div>
+        <div class="ws-name"><a class="tk" id="c-name" href="https://www.tradingview.com/" target="_blank" rel="noopener" title="Open on TradingView"></a><span class="ret" id="c-ret"></span><span class="ind" id="c-ind"></span></div>
         <button class="ic" id="next" aria-label="Next stock" title="Next stock (])">›</button>
+        <button class="rm-btn" id="rm-btn" type="button" title="Remove this stock from the study (you can undo)">✕ Remove</button>
+        <form class="rm-pop" id="rm-pop" hidden>
+          <label for="rm-reason">Why remove it?</label><select id="rm-reason"></select>
+          <label for="rm-note">Note (optional)</label><input id="rm-note" maxlength="300" placeholder="e.g. very illiquid, can't be replicated">
+          <div class="exrow"><button class="exbtn primary" type="submit">Remove</button><button class="exbtn" type="button" id="rm-cancel">Cancel</button></div>
+        </form>
       </div>
       <div class="ws-tools">
         <div class="indgrp"><span class="indlab">Stock</span>
@@ -298,12 +316,14 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
           <button data-ind="e20" aria-pressed="true" title="20-period EMA on the stock"><i style="background:var(--ema20)"></i>EMA 20</button>
           <button data-ind="m50" aria-pressed="true" title="50-day simple average"><i style="background:var(--ma50)"></i>50</button>
           <button data-ind="m200" aria-pressed="true" title="200-day simple average"><i style="background:var(--ma200)"></i>200</button>
+          <button data-ind="vol" aria-pressed="true" title="Show or hide the volume pane"><i style="background:var(--muted);height:8px;opacity:.6"></i>Volume</button>
           <button data-ind="rib" aria-pressed="true" title="10/20 ribbon: shading between EMA 10 and EMA 20, green when EMA 10 is above, red when below"><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%);height:8px;opacity:.6"></i>Ribbon</button>
           <button data-ind="mb" aria-pressed="true" title="Momentum burst: up more than 4% on 1.4× the 21-day average volume, closing in the top 30% of the open-to-high range"><i style="background:#2196F3;height:8px"></i>MB</button>
           <button data-ind="nr" aria-pressed="true" title="NR7 + inside bar: the narrowest true range of the last 7 bars, inside the previous bar"><i style="background:#E040FB;height:8px"></i>NR7</button>
         </div></div>
         <div class="indgrp"><span class="indlab">Index</span>
         <div class="seg ind" role="group" aria-label="Lines on the Smallcap 250 chart">
+          <button data-ind="ixp" aria-pressed="true" title="Show or hide the Smallcap 250 pane (the regime strip moves to the foot of the price chart)"><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%);height:8px"></i>Chart</button>
           <button data-ind="ie10" aria-pressed="true" title="10-period EMA on the Smallcap 250"><i style="background:var(--ema10)"></i>EMA 10</button>
           <button data-ind="ie20" aria-pressed="true" title="20-period EMA on the Smallcap 250"><i style="background:var(--ema20)"></i>EMA 20</button>
           <button data-ind="rg" aria-pressed="true" title="Market regime on the Smallcap 250: green above EMA 10 and 20, red below both, amber mixed. A marker shows each change, confirmed by 2 closes."><i style="background:linear-gradient(90deg,var(--up) 0 33%,var(--amber) 33% 66%,var(--down) 66% 100%)"></i>Regime</button>
@@ -313,6 +333,7 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
           <button id="v-full" aria-pressed="false">Whole move</button>
         </div>
         <button class="ms-btn" id="ms-toggle" aria-pressed="false" title="Measure the % move between two points (M)">↕ Measure %</button>
+        <button class="ms-btn" id="vc-btn" type="button" aria-pressed="false" title="Volume candles: each candle's width shows its volume against the 50-day average. Hides the volume and index panes; the market regime strip stays at the foot of the chart.">▮ Volume candles</button>
         <button class="ms-btn" id="pr-btn" type="button" title="Save this chart as a print-ready PDF (A4 landscape)">⎙ Print</button><span class="pr-msg" id="pr-msg" aria-live="polite"></span>
         <button class="rp-main" id="rp-toggle" aria-pressed="false">▶ Replay</button>
       </div>
@@ -336,6 +357,7 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
           <button data-sort="ret" aria-pressed="true">Return</button><button data-sort="score" aria-pressed="false">Score</button><button data-sort="low" aria-pressed="false">Low</button>
         </div>
         <div class="plist" id="plist" role="list"></div>
+        <button class="wl-foot" id="wl-rm" type="button" hidden></button>
       </aside>
       <div class="ws-chart">
         <div class="legend-ohlc" id="legend"></div>
@@ -347,7 +369,7 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
     <div class="readout" id="readout" hidden></div>
     <div class="ws-foot">
       <div class="timeline" id="timeline"></div>
-      <div class="keys"><span><i style="background:var(--ema10)"></i>EMA 10</span><span><i style="background:var(--ema20)"></i>EMA 20</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%);opacity:.5"></i>10/20 ribbon</span><span><i style="background:#2196F3"></i>Momentum burst candle</span><span><i style="background:#E040FB"></i>NR7 + inside bar candle</span><span><i style="background:var(--ma50)"></i>50 DMA</span><span><i style="background:var(--ma200)"></i>200 DMA</span><span><i style="background:var(--accent);opacity:.6"></i>Pre-breakout range</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Q = result (est.): green if net profit YoY ≥ 0, red if negative</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Nifty Smallcap 250 (candles; its EMA 10/20 toggle separately)</span><span><i style="background:linear-gradient(90deg,var(--up) 0 33%,var(--amber) 33% 66%,var(--down) 66% 100%)"></i>Market regime (ribbon under the index): ▲ uptrend = above EMA 10 and 20 · ● mixed · ▼ downtrend = below both; a marker shows each change, confirmed by 2 closes</span></div>
+      <div class="keys"><span><i style="background:var(--ema10)"></i>EMA 10</span><span><i style="background:var(--ema20)"></i>EMA 20</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%);opacity:.5"></i>10/20 ribbon</span><span><i style="background:#2196F3"></i>Momentum burst candle</span><span><i style="background:#E040FB"></i>NR7 + inside bar candle</span><span><i style="background:var(--ma50)"></i>50 DMA</span><span><i style="background:var(--ma200)"></i>200 DMA</span><span><i style="background:var(--accent);opacity:.6"></i>Pre-breakout range</span><span><i style="background:transparent;border:1px solid var(--up);height:8px;width:14px;border-radius:2px"></i>Q badge = result (est.): green outline if net profit YoY ≥ 0, red if negative</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Nifty Smallcap 250 (candles; its EMA 10/20 toggle separately)</span><span><i style="background:linear-gradient(90deg,var(--up) 0 33%,var(--amber) 33% 66%,var(--down) 66% 100%)"></i>Market regime (ribbon under the index): ▲ uptrend = above EMA 10 and 20 · ● mixed · ▼ downtrend = below both; a marker shows each change, confirmed by 2 closes</span></div>
     </div>
   </div>
   <div class="info3">
@@ -367,8 +389,8 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
 </section>
 
 <section id="ex-sec">
-  <div class="sec-head"><div class="eyebrow">Review</div><h2>Marked as not winners</h2>
-    <p class="muted">Use <b>Mark as not a winner</b> in a stock's Setup score panel for moves that are not real setups: a takeover, a price-only or operator-style move, or bad data. Marked stocks drop out of every summary on this page right away. To remove them from the study for good, ask Claude to “remove the marked stocks”.</p>
+  <div class="sec-head"><div class="eyebrow">Review</div><h2>Removed from the study</h2>
+    <p class="muted">Use <b>✕ Remove</b> next to a stock's name for names that are not worth studying: too illiquid to replicate, a takeover, a price-only or operator-style move, or bad data. Removed stocks leave the stock list and every summary right away (“Show removed” at the bottom of the list brings them back for undo). To drop them from the repo data for good, ask Claude to “remove the marked stocks”.</p>
     <p class="note" id="ex-status"></p></div>
   <div class="panel">
     <div class="tbl-wrap"><table id="ex-table"></table></div>
@@ -445,7 +467,8 @@ const REG=(()=>{const c=IDX.map(x=>x[4]),e10=ema(c,10),e20=ema(c,20);
   st.push(s);since.push(sn)}
  return {e10,e20,st,since,chg};})();
 function regAt(d){let k=IDXI.get(d);if(k==null){k=-1;for(let j=0;j<IDX.length&&IDX[j][0]<=d;j++)k=j}return k<0?null:{s:REG.st[k],since:REG.since[k]}}
-const EX_REASONS=['Takeover or corporate event','Price-only move (no earnings support)','Illiquid or operator-style','Bad data or wrong symbol','Other'];
+const EX_REASONS=['Illiquid / hard to replicate','Takeover or corporate event','Price-only move (no earnings support)','Operator-style move','Bad data or wrong symbol','Other'];
+let SHOWRM=false;   // watchlist: show removed stocks (struck through) for undo
 const exKey=s=>s.replace(/[^A-Za-z0-9_\-~:@]/g,c=>'+'+c.charCodeAt(0).toString(16));   // GVT&D -> GVT+26D
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let exDb=null,exMode='local';
@@ -502,9 +525,11 @@ const READ={"CUPID":"Biggest winner, but the textbook signals were weak at entry
 /* picker */
 let sortKey='ret',cur=null;
 function list(){
- const rows=[...GAall()].sort((a,b)=>(!!EX[a.stock]-!!EX[b.stock])||(sortKey==='ret'?b.calc_return-a.calc_return:sortKey==='score'?(b.score-a.score||b.calc_return-a.calc_return):a.low_date.localeCompare(b.low_date)));
- $('#plist').innerHTML=rows.map(r=>`<button class="pitem${EX[r.stock]?' ex':''}" role="listitem" data-s="${r.stock}" aria-current="${r.stock===cur}" title="${EX[r.stock]?'Marked as not a winner':''}"><span>${r.stock}${GROUP==='all'&&r.tier===2?'<small class="t2">T2</small>':''}${EX[r.stock]?'<small class="t2">✕</small>':''}</span><span class="r">${sortKey==='score'?r.score+'/9':sortKey==='low'?fmtD(r.low_date):fmtPct(r.calc_return)}</span></button>`).join('');
+ const rows=[...GAall()].filter(r=>SHOWRM||!EX[r.stock]||r.stock===cur).sort((a,b)=>(!!EX[a.stock]-!!EX[b.stock])||(sortKey==='ret'?b.calc_return-a.calc_return:sortKey==='score'?(b.score-a.score||b.calc_return-a.calc_return):a.low_date.localeCompare(b.low_date)));
+ $('#plist').innerHTML=rows.map(r=>`<button class="pitem${EX[r.stock]?' ex':''}" role="listitem" data-s="${r.stock}" aria-current="${r.stock===cur}" title="${EX[r.stock]?'Removed from the study':''}"><span>${r.stock}${GROUP==='all'&&r.tier===2?'<small class="t2">T2</small>':''}${EX[r.stock]?'<small class="t2">✕</small>':''}</span><span class="r">${sortKey==='score'?r.score+'/9':sortKey==='low'?fmtD(r.low_date):fmtPct(r.calc_return)}</span></button>`).join('');
  document.querySelectorAll('.pitem').forEach(b=>b.onclick=()=>select(b.dataset.s));
+ const nRm=GAall().filter(r=>EX[r.stock]).length,f=$('#wl-rm');
+ f.hidden=!nRm;f.textContent=SHOWRM?`Hide removed (${nRm})`:`Show removed (${nRm})`;f.onclick=()=>{SHOWRM=!SHOWRM;list()};
 }
 document.querySelectorAll('[data-sort]').forEach(b=>b.onclick=()=>{sortKey=b.dataset.sort;document.querySelectorAll('[data-sort]').forEach(x=>x.setAttribute('aria-pressed',x===b));list()});
 
@@ -516,10 +541,10 @@ function idxOf(rows,d){for(let k=0;k<rows.length;k++)if(rows[k][0]>=d)return k;r
 function addDays(d,n){const x=new Date(d+'T00:00:00');x.setDate(x.getDate()+n);return x.toISOString().slice(0,10)}
 function allMarkers(r,rows){
  const M=[];const add=(d,o,kind)=>{const t=snap(rows,d);if(t)M.push({time:t,kind,...o})};
- add(r.low_date,{position:'belowBar',shape:'arrowUp',color:css('--up'),text:'Low'},'k');
- add(r.bo_date,{position:'belowBar',shape:'arrowUp',color:css('--accent'),text:'BO '+r.bo_vol_x+'×'},'k');
- if(r.nh_date)add(r.nh_date,{position:'belowBar',shape:'circle',color:css('--rs'),text:'52wH'},'k');
- add(r.high_date,{position:'aboveBar',shape:'arrowDown',color:css('--down'),text:'Top'},'k');
+ add(r.low_date,{position:'belowBar',shape:'arrowUp',color:css('--up'),text:'▲ Low'},'k');
+ add(r.bo_date,{position:'belowBar',shape:'arrowUp',color:css('--accent'),text:'▲ BO '+r.bo_vol_x+'×'},'k');
+ if(r.nh_date)add(r.nh_date,{position:'belowBar',shape:'circle',color:css('--rs'),text:'● 52wH'},'k');
+ add(r.high_date,{position:'aboveBar',shape:'arrowDown',color:css('--down'),text:'▼ Top'},'k');
  r.earnings.forEach(e=>{if(e.rd<rows[0][0]||e.rd>rows[rows.length-1][0])return;const np=e.np_yoy==null?'':e.np_yoy===999?' TA':' '+fmtPct(e.np_yoy);add(e.rd,{position:'aboveBar',shape:'square',color:e.np_yoy==null?css('--muted'):(e.np_yoy>=0?css('--up'):css('--down')),text:'Q'+np},'q')});
  return M.sort((a,b)=>a.time.localeCompare(b.time));
 }
@@ -623,28 +648,38 @@ function draw(){
   timeScale:{borderColor:rule,rightOffset:10,barSpacing:7,minBarSpacing:2},
   crosshair:{mode:L.CrosshairMode.Normal,vertLine:{color:fg,labelBackgroundColor:css('--ink')},horzLine:{color:fg,labelBackgroundColor:css('--ink')}}});
  const line=(c,w,pane,style,extra)=>chart.addSeries(L.LineSeries,{color:c,lineWidth:w,lineStyle:style||0,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,...(extra||{})},pane);
- S={cs:chart.addSeries(L.CandlestickSeries,{upColor:css('--up'),downColor:css('--down'),wickUpColor:css('--up'),wickDownColor:css('--down'),borderVisible:false,priceLineVisible:true,priceLineStyle:2,priceFormat:(()=>{const px=rows[rows.length-1][4];const pr=px>=1000?0:px>=100?1:2;return {type:'price',precision:pr,minMove:1/Math.pow(10,pr)}})()},0),
+ const VC=!!IND.vc,HV=VC||!IND.vol,HX=VC||!IND.ixp;            // hidden volume pane / hidden index pane
+ const PV=HV?0:1,PI=HX?0:(HV?1:2);
+ const HIDV=k=>HV?{priceScaleId:k,visible:false}:{},HIDX=k=>HX?{priceScaleId:k,visible:false}:{};
+ S={cs:chart.addSeries(L.CandlestickSeries,{upColor:VC?'rgba(0,0,0,0)':css('--up'),downColor:VC?'rgba(0,0,0,0)':css('--down'),wickUpColor:VC?'rgba(0,0,0,0)':css('--up'),wickDownColor:VC?'rgba(0,0,0,0)':css('--down'),borderVisible:false,priceLineVisible:true,priceLineStyle:2,priceFormat:(()=>{const px=rows[rows.length-1][4];const pr=px>=1000?0:px>=100?1:2;return {type:'price',precision:pr,minMove:1/Math.pow(10,pr)}})()},0),
     m50:line(css('--ma50'),1.5,0),m200:line(css('--ma200'),1.5,0),e10:line(css('--ema10'),1.25,0),e20:line(css('--ema20'),1.25,0),
     E10:ema(rows.map(x=>x[4]),10),E20:ema(rows.map(x=>x[4]),20),bh:line(css('--accent'),1,0,2),bl:line(css('--accent'),1,0,2),
-    vol:chart.addSeries(L.HistogramSeries,{priceFormat:{type:'volume'},priceLineVisible:false,lastValueVisible:false},1),
-    v50:line(css('--muted'),1,1),
-    ix:chart.addSeries(L.CandlestickSeries,{upColor:css('--up'),downColor:css('--down'),wickUpColor:css('--up'),wickDownColor:css('--down'),borderVisible:false,priceLineVisible:false,lastValueVisible:true,priceFormat:{type:'price',precision:0,minMove:1}},2),
-    ie10:line(css('--ema10'),1,2),ie20:line(css('--ema20'),1,2),
+    vol:chart.addSeries(L.HistogramSeries,{priceFormat:{type:'volume'},priceLineVisible:false,lastValueVisible:false,...HIDV('volx')},PV),
+    v50:line(css('--muted'),1,PV,0,HIDV('volx')),
+    ix:chart.addSeries(L.CandlestickSeries,{upColor:css('--up'),downColor:css('--down'),wickUpColor:css('--up'),wickDownColor:css('--down'),borderVisible:false,priceLineVisible:false,lastValueVisible:true,priceFormat:{type:'price',precision:0,minMove:1},...HIDX('ixs')},PI),
+    ie10:line(css('--ema10'),1,PI,0,HIDX('ixs')),ie20:line(css('--ema20'),1,PI,0,HIDX('ixs')),
     IE10:rows.map(x=>{const k=IDXI.get(x[0]);return k==null?null:REG.e10[k]}),IE20:rows.map(x=>{const k=IDXI.get(x[0]);return k==null?null:REG.e20[k]}),
-    rg:chart.addSeries(L.HistogramSeries,{priceScaleId:'rg',priceLineVisible:false,lastValueVisible:false,base:0},2),
+    rg:chart.addSeries(L.HistogramSeries,{priceScaleId:'rg',priceLineVisible:false,lastValueVisible:false,base:0},PI),
     ua:css('--up-a'),da:css('--down-a'),markers:allMarkers(r,rows)};
  S.mk=L.createSeriesMarkers(S.cs,[]);
  S.ixMk=L.createSeriesMarkers(S.ix,[]);
+ S.hideVol=HV;S.hideIx=HX;
+ S.rgMk=HX?L.createSeriesMarkers(S.rg,[]):null;   // index pane hidden: regime strip + markers at the foot of the price pane
  S.SIG=barSignals(rows);
  S.ribUp=(c=>/^#[0-9a-f]{6}$/i.test(c)?c+'2e':c)(css('--up'));S.ribDn=(c=>/^#[0-9a-f]{6}$/i.test(c)?c+'2e':c)(css('--down'));
  S.cs.attachPrimitive(new Ribbon());
- try{S.rg.priceScale().applyOptions({scaleMargins:{top:0.93,bottom:0},visible:false});S.ix.priceScale().applyOptions({scaleMargins:{top:0.06,bottom:0.12}})}catch(e){}
+ S.sheet=bg;
+ S.vcUp=css('--up');S.vcDn=css('--down');
+ if(VC)S.cs.attachPrimitive(new VolCandles());
+ S.cs.attachPrimitive(new Badges());   // after the candles so labels sit on top; normal layer so Print captures them
+ try{S.rg.priceScale().applyOptions({scaleMargins:{top:HX?0.955:0.93,bottom:0},visible:false});S.ix.priceScale().applyOptions({scaleMargins:{top:0.06,bottom:0.12}});
+  if(HX)S.cs.priceScale().applyOptions({scaleMargins:{top:0.08,bottom:0.1}})}catch(e){}
  const tint=c=>/^#[0-9a-f]{6}$/i.test(c)?c+'99':c;
  S.rgCol={G:tint(css('--up')),A:tint(css('--amber')),R:tint(css('--down'))};
  S.rgMarks=rows.map(x=>{const k=IDXI.get(x[0]);if(k==null||!REG.chg[k])return null;const s=REG.st[k];
   return {time:x[0],position:s==='R'?'aboveBar':'belowBar',shape:s==='G'?'arrowUp':s==='R'?'arrowDown':'circle',color:css(REGV[s]),size:1}}).filter(Boolean);
  const panes=chart.panes();
- try{panes[0].setStretchFactor(60);panes[1].setStretchFactor(15);panes[2].setStretchFactor(25)}catch(e){}
+ try{const wts=[60].concat(HV?[]:[15]).concat(HX?[]:[25]);panes.forEach((pn,k)=>pn.setStretchFactor(wts[k]||10))}catch(e){}
  try{L.createTextWatermark(panes[0],{horzAlign:'center',vertAlign:'center',lines:[{text:cur,color:css('--grid'),fontSize:72,fontStyle:'800'}]})}catch(e){}
  msHook();
  chart.subscribeCrosshairMove(p=>{
@@ -659,7 +694,7 @@ function render(i){
  const r=A.find(x=>x.stock===cur),rows=C[cur],sl=rows.slice(0,i+1);
  const ser=k=>sl.filter(x=>x[k]!=null).map(x=>({time:x[0],value:x[k]}));
  S.lastI=i;
- S.cs.setData(sl.map((x,k)=>{const b={time:x[0],open:x[1],high:x[2],low:x[3],close:x[4]},c=IND.mb&&S.SIG.mb[k]?'#2196F3':IND.nr&&S.SIG.nr[k]?'#E040FB':null;return c?{...b,color:c,borderColor:c,wickColor:c}:b}));
+ S.cs.setData(sl.map((x,k)=>{const b={time:x[0],open:x[1],high:x[2],low:x[3],close:x[4]},c=IND.vc?null:IND.mb&&S.SIG.mb[k]?'#2196F3':IND.nr&&S.SIG.nr[k]?'#E040FB':null;return c?{...b,color:c,borderColor:c,wickColor:c}:b}));
  S.m50.setData(ser(6));S.m200.setData(ser(7));S.v50.setData(ser(8));
  const eS=E=>sl.map((x,k)=>({time:x[0],value:E[k]})).filter(z=>z.value!=null);S.e10.setData(eS(S.E10));S.e20.setData(eS(S.E20));S.ie10.setData(eS(S.IE10));S.ie20.setData(eS(S.IE20));applyInd();
  S.vol.setData(sl.map(x=>({time:x[0],value:x[5],color:x[4]>=x[1]?S.ua:S.da})));
@@ -667,10 +702,12 @@ function render(i){
  const bx=t>=r.bo_date?rows.filter(x=>x[0]>=r.base_start&&x[0]<=r.bo_date):[];
  S.bh.setData(bx.map(x=>({time:x[0],value:r.base_hi})));S.bl.setData(bx.map(x=>({time:x[0],value:r.base_lo})));
  const blind=rp.on&&$('#rp-blind').checked;
- S.mk.setMarkers(S.markers.filter(m=>m.time<=t&&!(blind&&m.kind==='k')).map(({kind,...m})=>m));
+ S.mk.setMarkers([]);   // labels are drawn as tinted badges (Badges primitive)
+ S.blind=blind;
  S.ix.setData(sl.filter(x=>x[12]!=null&&x[IXC]!=null).map(x=>({time:x[0],open:x[12],high:x[13],low:x[14],close:x[IXC]})));
  S.rg.setData(sl.map(x=>{const k=IDXI.get(x[0]),s=k==null?null:REG.st[k];return s?{time:x[0],value:1,color:S.rgCol[s]}:{time:x[0]}}));
- S.ixMk.setMarkers(IND.rg?S.rgMarks.filter(m=>m.time<=t):[]);
+ S.ixMk.setMarkers(IND.rg&&!S.hideIx?S.rgMarks.filter(m=>m.time<=t):[]);
+ if(S.rgMk)S.rgMk.setMarkers(IND.rg?S.rgMarks.filter(m=>m.time<=t).map(m=>({...m,position:'aboveBar'})):[]);
  legend(i);
  if(rp.on){
   chart.timeScale().setVisibleLogicalRange({from:Math.max(0,i-160),to:i+14});
@@ -771,6 +808,32 @@ function barSignals(rows){
  return {mb,nr};
 }
 /* ---- 10/20 ribbon: the chart library cannot fill between two lines, so a pane primitive draws it ---- */
+/* ---- chart labels (Low, BO, 52wH, Top, quarterly results): outlined, lightly tinted badges ---- */
+class Badges{
+ constructor(){const self=this;this._view={zOrder:()=>'normal',renderer:()=>({draw:tg=>self._draw(tg)})}}
+ attached(){} detached(){} updateAllViews(){} paneViews(){return [this._view]}
+ _draw(target){
+  if(!chart||!S.cs||!S.markers)return;
+  const rows=C[cur],ts=chart.timeScale(),last=S.lastI??rows.length-1,lastT=rows[last][0];
+  target.useMediaCoordinateSpace(({context:ctx})=>{
+   ctx.font='600 10.5px "JetBrains Mono", ui-monospace, monospace';ctx.textBaseline='middle';ctx.textAlign='center';
+   const stack={};                                  // badges on the same bar and side stack instead of overlapping
+   for(const m of S.markers){
+    if(m.time>lastT||(S.blind&&m.kind==='k'))continue;
+    const k=idxOf(rows,m.time),x=ts.logicalToCoordinate(k);if(x==null)continue;
+    const below=m.position==='belowBar',yb=S.cs.priceToCoordinate(rows[k][below?3:2]);if(yb==null)continue;
+    const key=k+(below?'b':'a'),n=stack[key]=(stack[key]||0)+1,h=16,gap=10+(n-1)*(h+4);
+    const w=ctx.measureText(m.text).width+10,bx=x-w/2,by=below?yb+gap:yb-h-gap,yh=below?yb+3:yb-3,tickFrom=below?by:by+h;
+    ctx.beginPath();ctx.roundRect?ctx.roundRect(bx,by,w,h,4):ctx.rect(bx,by,w,h);
+    ctx.globalAlpha=0.94;ctx.fillStyle=S.sheet;ctx.fill();   // page-coloured base so candles behind do not show through
+    ctx.globalAlpha=0.16;ctx.fillStyle=m.color;ctx.fill();
+    ctx.globalAlpha=0.9;ctx.strokeStyle=m.color;ctx.lineWidth=1;ctx.beginPath();ctx.roundRect?ctx.roundRect(bx+.5,by+.5,w-1,h-1,4):ctx.rect(bx+.5,by+.5,w-1,h-1);ctx.stroke();
+    ctx.globalAlpha=1;ctx.fillStyle=m.color;ctx.fillText(m.text,x,by+h/2+.5);
+    if(n===1){ctx.globalAlpha=0.5;ctx.beginPath();ctx.moveTo(x,tickFrom);ctx.lineTo(x,yh);ctx.stroke();ctx.globalAlpha=1}   // thin tick to the bar
+   }
+  });
+ }
+}
 class Ribbon{
  constructor(){const self=this;this._view={zOrder:()=>'bottom',renderer:()=>({draw:tg=>self._draw(tg)})}}
  attached(){} detached(){} updateAllViews(){} paneViews(){return [this._view]}
@@ -791,20 +854,51 @@ class Ribbon{
   });
  }
 }
+/* ---- volume candles: width inside each candle's own slot = 15% + 85% x min(1, volume / (2.5 x 50-day average)) ----
+   The library cannot vary candle width, so its own candles go transparent (they still drive the
+   price scale, crosshair and markers) and this primitive draws the real ones. */
+class VolCandles{
+ constructor(){const self=this;this._view={zOrder:()=>'normal',renderer:()=>({draw:tg=>self._draw(tg)})}}
+ attached(){} detached(){} updateAllViews(){} paneViews(){return [this._view]}
+ _draw(target){
+  if(!IND.vc||!chart||!S.cs)return;
+  const rows=C[cur],ts=chart.timeScale(),vr=ts.getVisibleLogicalRange();if(!vr)return;
+  const last=S.lastI??rows.length-1,a=Math.max(0,Math.floor(vr.from)-3),b=Math.min(last,Math.ceil(vr.to)+3);
+  const p0=ts.logicalToCoordinate(a),p1=ts.logicalToCoordinate(a+1),sp=p0!=null&&p1!=null?Math.abs(p1-p0):6;
+  target.useBitmapCoordinateSpace(({context:ctx,horizontalPixelRatio:hr,verticalPixelRatio:vp})=>{
+   for(let k=a;k<=b;k++){
+    const r=rows[k],o=r[1],h=r[2],l=r[3],c=r[4],v=r[5],v50=r[8],x=ts.logicalToCoordinate(k);if(x==null)continue;
+    const yo=S.cs.priceToCoordinate(o),yh=S.cs.priceToCoordinate(h),yl=S.cs.priceToCoordinate(l),yc=S.cs.priceToCoordinate(c);
+    if(yo==null||yh==null||yl==null||yc==null)continue;
+    const rel=v50?v/v50:1,w=Math.max(1,sp*0.92*(0.15+0.85*Math.min(1,rel/2.5)));   // stays inside its own slot: no overlap
+    ctx.fillStyle=IND.mb&&S.SIG.mb[k]?'#2196F3':IND.nr&&S.SIG.nr[k]?'#E040FB':c>=o?S.vcUp:S.vcDn;
+    const ww=Math.max(1,Math.floor(hr));ctx.fillRect(Math.round(x*hr)-Math.floor(ww/2),Math.round(yh*vp),ww,Math.max(1,Math.round((yl-yh)*vp)));
+    const top=Math.min(yo,yc),bw=Math.max(1,Math.round(w*hr));
+    ctx.fillRect(Math.round(x*hr-bw/2),Math.round(top*vp),bw,Math.max(1,Math.round(Math.abs(yc-yo)*vp)));
+   }
+  });
+ }
+}
+function setVC(on){
+ IND.vc=on;try{localStorage.setItem('winners-ind',JSON.stringify(IND))}catch(e){}
+ $('#vc-btn').setAttribute('aria-pressed',on);
+ if(!chart)return;const vr=chart.timeScale().getVisibleLogicalRange();draw();if(vr&&!rp.on)chart.timeScale().setVisibleLogicalRange(vr);
+}
 /* ---- moving-average toggles (EMA 10 / EMA 20 / 50 DMA / 200 DMA) ---- */
 function ema(v,n){const k=2/(n+1),o=[];let e=null,c=0,s=0;
  for(const x of v){if(x==null){o.push(e);continue}
   if(e==null){s+=x;c++;if(c===n)e=s/n;o.push(e)}else{e=x*k+e*(1-k);o.push(e)}}
  return o}
-const IND={e10:true,e20:true,m50:true,m200:true,ie10:true,ie20:true,rg:true,rib:true,mb:true,nr:true};
+const IND={e10:true,e20:true,m50:true,m200:true,ie10:true,ie20:true,rg:true,rib:true,mb:true,nr:true,vc:false,vol:true,ixp:true};
 try{Object.assign(IND,JSON.parse(localStorage.getItem('winners-ind')||'{}'))}catch(e){}
 function applyInd(){
- if(S.e10){S.e10.applyOptions({visible:IND.e10});S.e20.applyOptions({visible:IND.e20});S.m50.applyOptions({visible:IND.m50});S.m200.applyOptions({visible:IND.m200});S.ie10.applyOptions({visible:IND.ie10});S.ie20.applyOptions({visible:IND.ie20});S.rg.applyOptions({visible:IND.rg});if(S.ixMk&&!IND.rg)S.ixMk.setMarkers([])}
+ if(S.e10){S.e10.applyOptions({visible:IND.e10});S.e20.applyOptions({visible:IND.e20});S.m50.applyOptions({visible:IND.m50});S.m200.applyOptions({visible:IND.m200});S.ie10.applyOptions({visible:IND.ie10&&!S.hideIx});S.ie20.applyOptions({visible:IND.ie20&&!S.hideIx});S.rg.applyOptions({visible:IND.rg});if(S.ixMk&&!IND.rg)S.ixMk.setMarkers([])}
  document.querySelectorAll('[data-ind]').forEach(b=>b.setAttribute('aria-pressed',!!IND[b.dataset.ind]));
 }
 document.querySelectorAll('[data-ind]').forEach(b=>b.onclick=()=>{
  IND[b.dataset.ind]=!IND[b.dataset.ind];
  try{localStorage.setItem('winners-ind',JSON.stringify(IND))}catch(e){}
+ if((b.dataset.ind==='vol'||b.dataset.ind==='ixp')&&chart){const vr=chart.timeScale().getVisibleLogicalRange();draw();if(vr&&!rp.on)chart.timeScale().setVisibleLogicalRange(vr);applyInd();return}
  applyInd();if(S.cs)render(rp.on?rp.i:C[cur].length-1);legend(rp.on?rp.i:C[cur].length-1);
 });
 /* ---- measure tool: click two points on the price pane, read the % move ---- */
@@ -890,10 +984,11 @@ function autoRead(r){
 }
 function select(s){
  const wasRp=rp.on;if(rp.on){pause();rp.on=false}
- cur=s;const r=A.find(x=>x.stock===s);FB=null;
+ const prev=cur;cur=s;const r=A.find(x=>x.stock===s);FB=null;
+ if(prev&&prev!==s&&EX[prev]&&!SHOWRM)list();   // a just-removed stock leaves the list once you move on
  MS.a=MS.b=MS.live=null;msHint();
  document.querySelectorAll('.pitem').forEach(b=>b.setAttribute('aria-current',b.dataset.s===s));
- $('#c-name').textContent=r.stock;$('#c-ret').textContent=fmtPct(r.calc_return)+' in 2025 · Tier '+r.tier;
+ {const a=$('#c-name');a.textContent=r.stock;a.href='https://www.tradingview.com/chart/?symbol='+encodeURIComponent('NSE:'+r.stock.replace(/[&-]/g,'_'));a.title=`Open ${r.stock} on TradingView (new tab)`}$('#c-ret').textContent=fmtPct(r.calc_return)+' in 2025 · Tier '+r.tier;
  $('#c-ind').textContent=r.industry;
  $('#timeline').innerHTML=[['Low',r.low_date,'−'+Math.round(r.drawdown_into_low)+'% from 52w high'],['Breakout',r.bo_date,fmtPct(r.gained_before_bo)+' off low · '+r.days_low_to_bo+'d'],['52w-high reclaim',r.nh_date,r.nh_date?fmtPct(r.nh_gained_from_low)+' off low':'not reached'],['Top',r.high_date,r.nh_to_high!=null?fmtPct(r.nh_to_high)+' after reclaim':fmtPct(r.bo_to_high)+' after BO']]
   .map(([k,d,x])=>{const g=d?regAt(d):null;return `<div class="tl"><span class="k">${k}</span><span class="d">${fmtD(d)}</span><span class="x">${x}</span>${g&&g.s?`<span class="x" style="color:var(${REGV[g.s]})">Market: ${REGN[g.s]}</span>`:''}</div>`}).join('');
@@ -903,7 +998,7 @@ function select(s){
  const vals={washout:'−'+Math.round(r.drawdown_into_low)+'%',rs_thrust:'+'+Math.round(r.rs_gain_low_to_bo)+' pts',higher_low:r.held_higher_low==null?'n/a':'',bo_volume:r.bo_vol_x+'×',accumulation:r.updown_vol+'',nh_trend:'',rs_new_high:'',earnings:'',liquidity:'₹'+liq+' cr'};
  $('#r-checks').innerHTML=CHK.map(([k,l])=>{const v=r.checks[k];const m=v===true?'<span class="m y">✓</span>':v===false?'<span class="m n">✗</span>':'<span class="m na">–</span>';return `<li>${m}<span>${l}</span><span class="val">${vals[k]||''}</span></li>`}).join('');
  $('#r-read').textContent=READ[s]||autoRead(r);
- renderMark();
+ renderMark();renderRm();
  $('#r-rs').innerHTML=rsStory(s).map(([k,v])=>`<li><span class="k">${k}</span><span>${v}</span></li>`).join('');
  const rows_=C[s],ND=notable(s);
  $('#r-days').innerHTML='<tr><th>Date</th><th>Stock</th><th>SC250</th><th>Excess</th><th>Vol</th><th>Read</th></tr>'+ND.map(d=>{const w=why(rows_,d.i,r);return `<tr class="dayrow" tabindex="0" data-i="${d.i}" title="${w.text.replace(/"/g,'')}"><td>${fmtD(rows_[d.i][0])}</td><td class="${d.s>=0?'pos':'neg'}">${fmtPct(d.s)}</td><td class="${d.m>=0?'pos':'neg'}">${fmtPct(d.m)}</td><td class="${d.ex>=0?'pos':'neg'}">${fmtPct(d.ex)}</td><td>${d.vx?d.vx.toFixed(1)+'×':'—'}</td><td><span class="wtag ${tagc(w.tag)}">${w.tag}</span></td></tr>`}).join('');
@@ -921,7 +1016,16 @@ renderSummary();   // re-run now that the RS helpers exist
 function exLocalLoad(){try{return JSON.parse(localStorage.getItem('winners-excluded')||'{}')}catch(e){return {}}}
 function exLocalSave(){try{localStorage.setItem('winners-excluded',JSON.stringify(EX))}catch(e){}}
 function exReplace(obj){for(const k in EX)delete EX[k];Object.assign(EX,obj);exRefresh()}
-function exRefresh(){renderSummary();list();renderMark();renderExList()}
+function exRefresh(){renderSummary();list();renderMark();renderExList();renderRm()}
+function renderRm(){
+ const b=$('#rm-btn'),pop=$('#rm-pop');if(!b||!cur)return;pop.hidden=true;
+ if(EX[cur]){b.textContent='Removed · Undo';b.classList.add('on');b.title=`${EX[cur].reason}${EX[cur].note?' · '+EX[cur].note:''}. Click to put it back.`;b.onclick=()=>exUnmark(cur)}
+ else{b.textContent='✕ Remove';b.classList.remove('on');b.title='Remove this stock from the study (you can undo)';
+  b.onclick=()=>{$('#rm-reason').innerHTML=EX_REASONS.map(x=>`<option>${x}</option>`).join('');$('#rm-note').value='';pop.hidden=false;$('#rm-reason').focus()}}
+}
+$('#rm-cancel').onclick=()=>{$('#rm-pop').hidden=true};
+$('#rm-pop').onsubmit=e=>{e.preventDefault();$('#rm-pop').hidden=true;exMark(cur,$('#rm-reason').value,$('#rm-note').value.trim())};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#rm-pop').hidden)$('#rm-pop').hidden=true});
 async function exMark(s,reason,note){
  const v={stock:s,reason,note:note.slice(0,300),at:new Date().toISOString()};
  EX[s]=v;exRefresh();
@@ -936,8 +1040,8 @@ async function exUnmark(s){
 function exStatus(msg){$('#ex-status').textContent=msg||(exMode==='db'?'Marks are saved with this page: they follow you across devices and Claude can read them.':'Marks are saved in this browser only. Open the published page to share them with Claude.')}
 function renderMark(){
  const box=$('#exbox');if(!box||!cur)return;const m=EX[cur];
- if(m){box.innerHTML=`<div class="exon"><b>Marked as not a winner</b><span>${esc(m.reason)}${m.note?' · '+esc(m.note):''}</span><button class="exbtn" id="ex-undo" type="button">Undo</button></div>`;$('#ex-undo').onclick=()=>exUnmark(cur);return}
- box.innerHTML=`<button class="exbtn" id="ex-open" type="button">Mark as not a winner</button>
+ if(m){box.innerHTML=`<div class="exon"><b>Removed from the study</b><span>${esc(m.reason)}${m.note?' · '+esc(m.note):''}</span><button class="exbtn" id="ex-undo" type="button">Undo</button></div>`;$('#ex-undo').onclick=()=>exUnmark(cur);return}
+ box.innerHTML=`<button class="exbtn" id="ex-open" type="button">✕ Remove from study</button>
   <form class="exform" id="ex-form" hidden>
    <label for="ex-reason">Reason</label><select id="ex-reason">${EX_REASONS.map(x=>`<option>${x}</option>`).join('')}</select>
    <label for="ex-note">Note (optional)</label><input id="ex-note" maxlength="300" placeholder="e.g. Mahindra takeover, not a chart setup">
@@ -951,7 +1055,7 @@ function renderExList(){
  const L=Object.values(EX).sort((a,b)=>String(b.at).localeCompare(String(a.at)));
  $('#ex-table').innerHTML=L.length?'<tr><th>Stock</th><th>Tier</th><th>2025 move</th><th>Reason</th><th>Note</th><th>Marked</th><th></th></tr>'+L.map(m=>{const r=A.find(x=>x.stock===m.stock)||{};
    return `<tr><td><button class="linkbtn" data-open="${esc(m.stock)}">${esc(m.stock)}</button></td><td>${r.tier||'—'}</td><td>${fmtPct(r.calc_return)}</td><td class="tdwrap">${esc(m.reason)}</td><td class="tdwrap">${esc(m.note)||'—'}</td><td class="muted">${fmtD(String(m.at).slice(0,10))}</td><td><button class="exbtn" data-undo="${esc(m.stock)}">Undo</button></td></tr>`}).join('')
-  :'<tr><td class="muted tdwrap">No stocks marked yet. Open a stock above and use “Mark as not a winner” in its Setup score panel.</td></tr>';
+  :'<tr><td class="muted tdwrap">Nothing removed yet. Use “✕ Remove” next to a stock name at the top of the chart.</td></tr>';
  document.querySelectorAll('[data-undo]').forEach(b=>b.onclick=()=>exUnmark(b.dataset.undo));
  document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{select(b.dataset.open);document.getElementById('bench-sec').scrollIntoView({behavior:'smooth'})});
  $('#ex-copy').hidden=!L.length;
@@ -1019,12 +1123,12 @@ function composePage({shot,s,box,col}){
  if(box){const bx=pad+Math.min(box.xa,box.xb)*s,by=head+Math.min(box.ya,box.yb)*s,bw=Math.abs(box.xb-box.xa)*s,bh=Math.abs(box.yb-box.ya)*s,c=box.up?col.up:col.down;
   x.fillStyle=c+'24';x.fillRect(bx,by,bw,bh);x.strokeStyle=c;x.lineWidth=Math.max(1,s);x.strokeRect(bx,by,bw,bh);
   x.font=`600 ${Math.round(12*s)}px "JetBrains Mono", monospace`;const tw=x.measureText(box.txt).width+12*s,th=20*s,ty=box.up?by-th-4*s:by+bh+4*s;
-  x.fillStyle=c;x.fillRect(bx+bw/2-tw/2,ty,tw,th);x.fillStyle='#fff';x.fillText(box.txt,bx+bw/2-tw/2+6*s,ty+14*s)}
+  x.fillStyle='#ffffff';x.fillRect(bx+bw/2-tw/2,ty,tw,th);x.fillStyle=c+'24';x.fillRect(bx+bw/2-tw/2,ty,tw,th);x.strokeStyle=c;x.strokeRect(bx+bw/2-tw/2,ty,tw,th);x.fillStyle=c;x.fillText(box.txt,bx+bw/2-tw/2+6*s,ty+14*s)}
  x.strokeStyle=col.rule;x.lineWidth=Math.max(1,s);x.beginPath();x.moveTo(pad,head+shot.height+Math.round(10*s));x.lineTo(cv.width-pad,head+shot.height+Math.round(10*s));x.stroke();
  x.fillStyle=col.muted;x.font=`500 ${Math.round(11*s)}px "JetBrains Mono", monospace`;
  const on=[IND.e10&&'EMA 10',IND.e20&&'EMA 20',IND.m50&&'50 DMA',IND.m200&&'200 DMA'].filter(Boolean).join(', ')||'no averages';
  const fit=(txt,y)=>{let t=txt;while(x.measureText(t).width>cv.width-pad*2&&t.length>10)t=t.slice(0,t.lastIndexOf(' · '))||t.slice(0,-2);x.fillText(t,pad,y)};
- fit(`Panes: price (${on}) · volume · Smallcap 250${IND.rg?' + regime (▲ up ● mixed ▼ down)':''} · Q = est. result date (green/red = profit YoY up/down)`,head+shot.height+Math.round(28*s));
+ fit(IND.vc?`Volume candles: width = volume vs 50-day average (full width at 2.5x or more) · lines: ${on}${IND.rg?' · strip at the foot = Smallcap 250 regime (▲ up ● mixed ▼ down)':''}`:`Panes: price (${on})${S.hideVol?'':' · volume'}${S.hideIx?(IND.rg?' · strip at the foot = Smallcap 250 regime (▲ up ● mixed ▼ down)':''):' · Smallcap 250'+(IND.rg?' + regime (▲ up ● mixed ▼ down)':'')} · Q = est. result date (green/red = profit YoY up/down)`,head+shot.height+Math.round(28*s));
  fit(`Data: Dhan daily prices, Screener.in quarterly results · 2025 Winners Playbook · printed ${fmtD(new Date().toISOString().slice(0,10))}`,head+shot.height+Math.round(45*s));
  return cv;
 }
@@ -1043,6 +1147,7 @@ async function printChart(){
  setTimeout(()=>prMsg(''),6000);
 }
 $('#pr-btn').onclick=printChart;
+$('#vc-btn').onclick=()=>setVC(!IND.vc);$('#vc-btn').setAttribute('aria-pressed',!!IND.vc);
 </script>
 
 </body></html>
