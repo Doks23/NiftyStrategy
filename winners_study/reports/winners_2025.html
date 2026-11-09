@@ -369,7 +369,7 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
     <div class="readout" id="readout" hidden></div>
     <div class="ws-foot">
       <div class="timeline" id="timeline"></div>
-      <div class="keys"><span><i style="background:var(--ema10)"></i>EMA 10</span><span><i style="background:var(--ema20)"></i>EMA 20</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%);opacity:.5"></i>10/20 ribbon</span><span><i style="background:#2196F3"></i>Momentum burst candle</span><span><i style="background:#E040FB"></i>NR7 + inside bar candle</span><span><i style="background:var(--ma50)"></i>50 DMA</span><span><i style="background:var(--ma200)"></i>200 DMA</span><span><i style="background:var(--accent);opacity:.6"></i>Pre-breakout range</span><span><i style="background:transparent;border:1px solid var(--up);height:8px;width:14px;border-radius:2px"></i>Q badge = result (est.): green outline if net profit YoY ≥ 0, red if negative</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Nifty Smallcap 250 (candles; its EMA 10/20 toggle separately)</span><span><i style="background:linear-gradient(90deg,var(--up) 0 33%,var(--amber) 33% 66%,var(--down) 66% 100%)"></i>Market regime (ribbon under the index): ▲ uptrend = above EMA 10 and 20 · ● mixed · ▼ downtrend = below both; a marker shows each change, confirmed by 2 closes</span></div>
+      <div class="keys"><span><i style="background:var(--ema10)"></i>EMA 10</span><span><i style="background:var(--ema20)"></i>EMA 20</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%);opacity:.5"></i>10/20 ribbon</span><span><i style="background:#2196F3"></i>Momentum burst candle</span><span><i style="background:#E040FB"></i>NR7 + inside bar candle</span><span><i style="background:var(--ma50)"></i>50 DMA</span><span><i style="background:var(--ma200)"></i>200 DMA</span><span><i style="background:var(--accent);opacity:.6"></i>Pre-breakout range</span><span><i style="background:transparent;border:1px solid var(--up);height:8px;width:14px;border-radius:2px"></i>~Q badge (dashed) = result date ESTIMATED as the SEBI deadline (quarter end + 45 days, + 60 for March); the actual date is often weeks earlier. Green if net profit YoY ≥ 0, red if negative</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Nifty Smallcap 250 (candles; its EMA 10/20 toggle separately)</span><span><i style="background:linear-gradient(90deg,var(--up) 0 33%,var(--amber) 33% 66%,var(--down) 66% 100%)"></i>Market regime (ribbon under the index): ▲ uptrend = above EMA 10 and 20 · ● mixed · ▼ downtrend = below both; a marker shows each change, confirmed by 2 closes</span></div>
     </div>
   </div>
   <div class="info3">
@@ -545,7 +545,7 @@ function allMarkers(r,rows){
  add(r.bo_date,{position:'belowBar',shape:'arrowUp',color:css('--accent'),text:'▲ BO '+r.bo_vol_x+'×'},'k');
  if(r.nh_date)add(r.nh_date,{position:'belowBar',shape:'circle',color:css('--rs'),text:'● 52wH'},'k');
  add(r.high_date,{position:'aboveBar',shape:'arrowDown',color:css('--down'),text:'▼ Top'},'k');
- r.earnings.forEach(e=>{if(e.rd<rows[0][0]||e.rd>rows[rows.length-1][0])return;const np=e.np_yoy==null?'':e.np_yoy===999?' TA':' '+fmtPct(e.np_yoy);add(e.rd,{position:'aboveBar',shape:'square',color:e.np_yoy==null?css('--muted'):(e.np_yoy>=0?css('--up'):css('--down')),text:'Q'+np},'q')});
+ r.earnings.forEach(e=>{if(e.rd<rows[0][0]||e.rd>rows[rows.length-1][0])return;const np=e.np_yoy==null?'':e.np_yoy===999?' TA':' '+fmtPct(e.np_yoy);add(e.rd,{position:'aboveBar',shape:'square',color:e.np_yoy==null?css('--muted'):(e.np_yoy>=0?css('--up'):css('--down')),text:'~Q'+np},'q')});
  return M.sort((a,b)=>a.time.localeCompare(b.time));
 }
 /* ---- market context: index move, excess move, day explanation, RS story ---- */
@@ -827,8 +827,8 @@ class Badges{
     ctx.beginPath();ctx.roundRect?ctx.roundRect(bx,by,w,h,4):ctx.rect(bx,by,w,h);
     ctx.globalAlpha=0.94;ctx.fillStyle=S.sheet;ctx.fill();   // page-coloured base so candles behind do not show through
     ctx.globalAlpha=0.16;ctx.fillStyle=m.color;ctx.fill();
-    ctx.globalAlpha=0.9;ctx.strokeStyle=m.color;ctx.lineWidth=1;ctx.beginPath();ctx.roundRect?ctx.roundRect(bx+.5,by+.5,w-1,h-1,4):ctx.rect(bx+.5,by+.5,w-1,h-1);ctx.stroke();
-    ctx.globalAlpha=1;ctx.fillStyle=m.color;ctx.fillText(m.text,x,by+h/2+.5);
+    ctx.globalAlpha=0.9;ctx.strokeStyle=m.color;ctx.lineWidth=1;ctx.setLineDash(m.kind==='q'?[3,2]:[]);ctx.beginPath();ctx.roundRect?ctx.roundRect(bx+.5,by+.5,w-1,h-1,4):ctx.rect(bx+.5,by+.5,w-1,h-1);ctx.stroke();
+    ctx.setLineDash([]);ctx.globalAlpha=1;ctx.fillStyle=m.color;ctx.fillText(m.text,x,by+h/2+.5);
     if(n===1){ctx.globalAlpha=0.5;ctx.beginPath();ctx.moveTo(x,tickFrom);ctx.lineTo(x,yh);ctx.stroke();ctx.globalAlpha=1}   // thin tick to the bar
    }
   });
