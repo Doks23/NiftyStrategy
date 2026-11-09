@@ -367,7 +367,7 @@ code{font-family:var(--f-mono);font-size:12.5px;background:var(--chip);padding:1
     <div class="readout" id="readout" hidden></div>
     <div class="ws-foot">
       <div class="timeline" id="timeline"></div>
-      <div class="keys"><span><i style="background:var(--ema10)"></i>EMA 10</span><span><i style="background:var(--ema20)"></i>EMA 20</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%);opacity:.5"></i>10/20 ribbon</span><span><i style="background:#2196F3"></i>Momentum burst candle</span><span><i style="background:#E040FB"></i>NR7 + inside bar candle</span><span><i style="background:var(--ma50)"></i>50 DMA</span><span><i style="background:var(--ma200)"></i>200 DMA</span><span><i style="background:var(--accent);opacity:.6"></i>Pre-breakout range</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Q = result (est.): green if net profit YoY ≥ 0, red if negative</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Nifty Smallcap 250 (candles; its EMA 10/20 toggle separately)</span><span><i style="background:linear-gradient(90deg,var(--up) 0 33%,var(--amber) 33% 66%,var(--down) 66% 100%)"></i>Market regime (ribbon under the index): ▲ uptrend = above EMA 10 and 20 · ● mixed · ▼ downtrend = below both; a marker shows each change, confirmed by 2 closes</span></div>
+      <div class="keys"><span><i style="background:var(--ema10)"></i>EMA 10</span><span><i style="background:var(--ema20)"></i>EMA 20</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%);opacity:.5"></i>10/20 ribbon</span><span><i style="background:#2196F3"></i>Momentum burst candle</span><span><i style="background:#E040FB"></i>NR7 + inside bar candle</span><span><i style="background:var(--ma50)"></i>50 DMA</span><span><i style="background:var(--ma200)"></i>200 DMA</span><span><i style="background:var(--accent);opacity:.6"></i>Pre-breakout range</span><span><i style="background:transparent;border:1px solid var(--up);height:8px;width:14px;border-radius:2px"></i>Q badge = result (est.): green outline if net profit YoY ≥ 0, red if negative</span><span><i style="background:linear-gradient(90deg,var(--up) 50%,var(--down) 50%)"></i>Nifty Smallcap 250 (candles; its EMA 10/20 toggle separately)</span><span><i style="background:linear-gradient(90deg,var(--up) 0 33%,var(--amber) 33% 66%,var(--down) 66% 100%)"></i>Market regime (ribbon under the index): ▲ uptrend = above EMA 10 and 20 · ● mixed · ▼ downtrend = below both; a marker shows each change, confirmed by 2 closes</span></div>
     </div>
   </div>
   <div class="info3">
@@ -666,6 +666,7 @@ function draw(){
  S.SIG=barSignals(rows);
  S.ribUp=(c=>/^#[0-9a-f]{6}$/i.test(c)?c+'2e':c)(css('--up'));S.ribDn=(c=>/^#[0-9a-f]{6}$/i.test(c)?c+'2e':c)(css('--down'));
  S.cs.attachPrimitive(new Ribbon());
+ S.cs.attachPrimitive(new EarnBadges());
  S.vcUp=css('--up');S.vcDn=css('--down');
  if(VC)S.cs.attachPrimitive(new VolCandles());
  try{S.rg.priceScale().applyOptions({scaleMargins:{top:HX?0.955:0.93,bottom:0},visible:false});S.ix.priceScale().applyOptions({scaleMargins:{top:0.06,bottom:0.12}});
@@ -698,7 +699,7 @@ function render(i){
  const bx=t>=r.bo_date?rows.filter(x=>x[0]>=r.base_start&&x[0]<=r.bo_date):[];
  S.bh.setData(bx.map(x=>({time:x[0],value:r.base_hi})));S.bl.setData(bx.map(x=>({time:x[0],value:r.base_lo})));
  const blind=rp.on&&$('#rp-blind').checked;
- S.mk.setMarkers(S.markers.filter(m=>m.time<=t&&!(blind&&m.kind==='k')).map(({kind,...m})=>m));
+ S.mk.setMarkers(S.markers.filter(m=>m.kind!=='q'&&m.time<=t&&!(blind&&m.kind==='k')).map(({kind,...m})=>m));
  S.ix.setData(sl.filter(x=>x[12]!=null&&x[IXC]!=null).map(x=>({time:x[0],open:x[12],high:x[13],low:x[14],close:x[IXC]})));
  S.rg.setData(sl.map(x=>{const k=IDXI.get(x[0]),s=k==null?null:REG.st[k];return s?{time:x[0],value:1,color:S.rgCol[s]}:{time:x[0]}}));
  S.ixMk.setMarkers(IND.rg&&!S.hideIx?S.rgMarks.filter(m=>m.time<=t):[]);
@@ -803,6 +804,27 @@ function barSignals(rows){
  return {mb,nr};
 }
 /* ---- 10/20 ribbon: the chart library cannot fill between two lines, so a pane primitive draws it ---- */
+/* ---- quarterly-result badges: outlined, lightly tinted, so they never read as candles ---- */
+class EarnBadges{
+ constructor(){const self=this;this._view={zOrder:()=>'top',renderer:()=>({draw:tg=>self._draw(tg)})}}
+ attached(){} detached(){} updateAllViews(){} paneViews(){return [this._view]}
+ _draw(target){
+  if(!chart||!S.cs||!S.markers)return;
+  const rows=C[cur],ts=chart.timeScale(),last=S.lastI??rows.length-1,lastT=rows[last][0];
+  target.useMediaCoordinateSpace(({context:ctx})=>{
+   ctx.font='600 10.5px "JetBrains Mono", ui-monospace, monospace';ctx.textBaseline='middle';ctx.textAlign='center';
+   for(const m of S.markers){
+    if(m.kind!=='q'||m.time>lastT)continue;
+    const k=idxOf(rows,m.time),x=ts.logicalToCoordinate(k),yh=S.cs.priceToCoordinate(rows[k][2]);if(x==null||yh==null)continue;
+    const w=ctx.measureText(m.text).width+10,h=16,bx=x-w/2,by=yh-h-10;
+    ctx.globalAlpha=0.14;ctx.fillStyle=m.color;ctx.beginPath();ctx.roundRect?ctx.roundRect(bx,by,w,h,4):ctx.rect(bx,by,w,h);ctx.fill();
+    ctx.globalAlpha=0.9;ctx.strokeStyle=m.color;ctx.lineWidth=1;ctx.beginPath();ctx.roundRect?ctx.roundRect(bx+.5,by+.5,w-1,h-1,4):ctx.rect(bx+.5,by+.5,w-1,h-1);ctx.stroke();
+    ctx.globalAlpha=1;ctx.fillStyle=m.color;ctx.fillText(m.text,x,by+h/2+.5);
+    ctx.globalAlpha=0.5;ctx.beginPath();ctx.moveTo(x,by+h);ctx.lineTo(x,yh-3);ctx.stroke();ctx.globalAlpha=1;   // thin tick down to the bar
+   }
+  });
+ }
+}
 class Ribbon{
  constructor(){const self=this;this._view={zOrder:()=>'bottom',renderer:()=>({draw:tg=>self._draw(tg)})}}
  attached(){} detached(){} updateAllViews(){} paneViews(){return [this._view]}
